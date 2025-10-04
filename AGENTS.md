@@ -33,4 +33,19 @@
 - Troubleshooting: Logs über structlog prüfen, Redis-Status, Celery-Worker-Queues.
 
 # CONTEXT ENGINE
-- (Reserviert für zukünftige Kontextanreicherung).
+- Zweck: Kuriert Schritt-konformen Kontext aus Task, Step, Memory, Repo, Artefakten, History und externen Docs.
+- Quellenmatrix: Task, StepPlan, Memory Notes/Files, Repo-Snippets (`path:Lx-Ly`), Artifacts (`./artifacts/<jobId>`), History-Summaries, External Docs (`scope=doc`).
+- Budget-Parameter: `CONTEXT_BUDGET_TOKENS`, Reserve `CONTEXT_OUTPUT_RESERVE_TOKENS`, Hard-Cap `CONTEXT_HARD_CAP_TOKENS`, Kompaktierung ab `CONTEXT_COMPACT_THRESHOLD_RATIO`.
+- Reserve: Immer Reserve für Output lassen, Überschuss -> Hard-Cap Drop, protokolliert.
+- Best Practices: "Just-in-Time Retrieval", "Structured Notes" (Notizschema beachten), "Summarize-then-Proceed" (History pflegen).
+- Troubleshooting: Context Rot Indikatoren (steigende tokens_clipped, leere Quellen), Tuning-Hebel (TopK, Mindestscore, Threshold, Memory Verdichtung).
+
+# CURATOR
+- Auswahlkriterien: Score basiert auf BM25-Light + Embedding-Cosine, Mindests score `CURATOR_MIN_SCORE`.
+- TopK: `CURATOR_TOPK` relevante Items, Redundanz vermeiden, Quellenvielfalt bevorzugen.
+- Konfliktlösung: Höchste Score priorisiert, gleicher Score -> bevorzugt jüngere History und Memory-Entscheidungen.
+
+# ARCHIVIST
+- Notizschema `{type: Decision|Constraint|Todo|Glossary|Link, title, body, tags[], stepId}` zwingend.
+- Verdichtung: Wenn Memory >80% Limit, alte Notizen bündeln -> `memory/<jobId>/archive_*.json`.
+- Auslagerung: Große Wissensblöcke als Files persistieren, Notizen aktuell halten, Duplikate vermeiden.

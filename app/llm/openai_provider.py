@@ -34,3 +34,7 @@ class OpenAILLMProvider(BaseLLMProvider):
         tokens_out = usage.get("completion_tokens", estimate_tokens(text))
         logger.info("openai_call", model=model, tokens_in=tokens_in, tokens_out=tokens_out)
         return LLMResponse(text=text, tokens_in=tokens_in, tokens_out=tokens_out)
+
+    def count_tokens(self, messages: List[Dict[str, str]]) -> int:
+        payload = json.dumps(messages)
+        return estimate_tokens(payload)

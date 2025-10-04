@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from datetime import datetime, timedelta
 from pathlib import Path
-
 import threading
+from typing import Any, Dict, List, Optional
 
 from app.agents.coder import CoderAgent
 from app.agents.cto import CTOAgent
-from app.agents.prompts import parse_agents_file
+from app.agents.prompts import build_prompt, parse_agents_file
+from app.context.engine import ContextEngine
 from app.core.config import get_settings
 from app.core.diffs import apply_unified_diff, safe_write
 from app.core.logging import get_logger
@@ -18,14 +20,14 @@ from app.db.engine import session_scope
 from app.db.models import JobStatus
 from app.git import repo_ops
 from app.llm.openai_provider import OpenAILLMProvider
-from app.llm.provider import DryRunLLMProvider
+from app.llm.provider import BaseLLMProvider, DryRunLLMProvider
 
 from .celery_app import celery_app
 
 logger = get_logger(__name__)
 
 
-def _select_provider(dry_run: bool):
+def _select_provider(dry_run: bool) -> BaseLLMProvider:
     if dry_run:
         return DryRunLLMProvider()
     return OpenAILLMProvider()
@@ -77,12 +79,69 @@ def _run_coro(coro):
     return asyncio.run(coro)
 
 
+def _prepare_messages(
+    provider: BaseLLMProvider,
+    *,
+    job_id: str,
+    step_id: Optional[str],
+    role: str,
+    task: str,
+    step: Optional[Dict[str, Any]],
+    base_messages: List[Dict[str, str]],
+    repo_path: Optional[Path],
+) -> tuple[List[Dict[str, str]], Optional[Dict[str, Any]]]:
+    settings = get_settings()
+    if not settings.context_engine_enabled:
+        return base_messages, None
+    engine = ContextEngine(provider)
+    with session_scope() as session:
+        result = engine.build_context(
+            session=session,
+            job_id=job_id,
+            step_id=step_id,
+            role=role,
+            task=task,
+            step=step,
+            base_messages=base_messages,
+            repo_path=repo_path,
+        )
+        return result.messages, result.diagnostics
+
+
+def _format_context_report(diagnostics: Optional[Dict[str, Any]]) -> str:
+    if not diagnostics:
+        return "## Context Report\n- Context engine disabled"
+    budget = diagnostics.get("budget", {})
+    lines = ["## Context Report"]
+    lines.append(
+        f"- Tokens final: {diagnostics.get('tokens_final', 0)} (clipped: {diagnostics.get('tokens_clipped', 0)})"
+    )
+    lines.append(f"- Compact operations: {diagnostics.get('compact_ops', 0)}")
+    lines.append(
+        f"- Budget: {budget.get('budget_tokens', 0)} reserve={budget.get('reserve_tokens', 0)} hard_cap={budget.get('hard_cap_tokens', 0)}"
+    )
+    dropped = diagnostics.get("dropped", [])
+    if dropped:
+        lines.append(f"- Hard-cap drops: {len(dropped)} segments")
+    lines.append("### Top Sources")
+    for source in diagnostics.get("sources", [])[:5]:
+        try:
+            score = f"{source.get('score', 0.0):.2f}"
+        except Exception:  # pragma: no cover - defensive
+            score = "n/a"
+        lines.append(
+            f"- {source.get('source')} {source.get('metadata', {}).get('title', '')} (score={score}, tokens={source.get('tokens', 0)})"
+        )
+    return "\n".join(lines)
+
+
 @celery_app.task(name="app.workers.job_worker.execute_job", bind=True)
 def execute_job(self, job_id: str):
     settings = get_settings()
     spec = parse_agents_file()
     provider_cto = _select_provider(settings.dry_run)
     provider_coder = _select_provider(settings.dry_run)
+    last_context_diag: Optional[Dict[str, Any]] = None
     try:
         with session_scope() as session:
             job = repo.get_job(session, job_id)
@@ -99,12 +158,27 @@ def execute_job(self, job_id: str):
             model_coder = job.model_coder or settings.model_coder
             repo.update_job_status(session, job, JobStatus.RUNNING)
             session.commit()
-        plan, plan_tokens_in, plan_tokens_out = _run_coro(
-            CTOAgent(provider_cto, spec, model_cto, settings.dry_run).create_plan(job_task)
+        cto_agent = CTOAgent(provider_cto, spec, model_cto, settings.dry_run)
+        base_prompt = build_prompt(spec.section("CTO-AI"), f"Task: {job_task}")
+        base_messages = [{"role": "system", "content": base_prompt}]
+        plan_messages, context_diag = _prepare_messages(
+            provider_cto,
+            job_id=job_id,
+            step_id=None,
+            role="cto-plan",
+            task=job_task,
+            step=None,
+            base_messages=base_messages,
+            repo_path=None,
         )
-        if plan_tokens_in or plan_tokens_out:
-            with session_scope() as session:
-                job = repo.get_job(session, job_id)
+        if context_diag:
+            last_context_diag = context_diag
+        plan, plan_tokens_in, plan_tokens_out = _run_coro(
+            cto_agent.create_plan(job_task, messages=plan_messages)
+        )
+        with session_scope() as session:
+            job = repo.get_job(session, job_id)
+            if plan_tokens_in or plan_tokens_out:
                 cost = _calculate_cost(model_cto, plan_tokens_in, plan_tokens_out)
                 repo.increment_costs(
                     session,
@@ -115,7 +189,15 @@ def execute_job(self, job_id: str):
                     tokens_out=plan_tokens_out,
                     cost_usd=cost,
                 )
-                session.commit()
+            repo.add_message_summary(
+                session,
+                job_id=job_id,
+                step_id=None,
+                role="cto-plan",
+                summary=json.dumps(plan, ensure_ascii=False)[:2000],
+                tokens=plan_tokens_out,
+            )
+            session.commit()
         with session_scope() as session:
             job = repo.get_job(session, job_id)
             job.last_action = "plan"
@@ -142,7 +224,22 @@ def execute_job(self, job_id: str):
                 repo.update_step(session, step_model, status="running")
                 session.commit()
             coder_agent = CoderAgent(provider_coder, spec, model_coder, settings.dry_run)
-            result = _run_coro(coder_agent.implement_step(job_task, step))
+            coder_context = json.dumps({"task": job_task, "step": step}, ensure_ascii=False, indent=2)
+            coder_prompt = build_prompt(spec.section("CODER-AI"), coder_context)
+            base_messages = [{"role": "system", "content": coder_prompt}]
+            messages, context_diag = _prepare_messages(
+                provider_coder,
+                job_id=job_id,
+                step_id=step_id,
+                role="coder-step",
+                task=job_task,
+                step=step,
+                base_messages=base_messages,
+                repo_path=repo_path,
+            )
+            if context_diag:
+                last_context_diag = context_diag
+            result = _run_coro(coder_agent.implement_step(job_task, step, messages=messages))
             diff_text = result.get("diff", "")
             summary = result.get("summary", "")
             if diff_text:
@@ -165,6 +262,14 @@ def execute_job(self, job_id: str):
                         tokens_out=tokens_out,
                         cost_usd=cost,
                     )
+                repo.add_message_summary(
+                    session,
+                    job_id=job_id,
+                    step_id=step_id,
+                    role="coder-step",
+                    summary=summary[:2000],
+                    tokens=tokens_out,
+                )
                 job.last_action = summary or step.get("title")
                 session.add(job)
                 step_model = repo.get_step(session, step_id)
@@ -178,11 +283,13 @@ def execute_job(self, job_id: str):
                     f"{job.agents_hash} -> {spec.digest}" if job and job.agents_hash != spec.digest else "unchanged"
                 )
             repo_ops.push_branch(repo_instance, feature_branch)
+            context_report = _format_context_report(last_context_diag)
             pr_body = (
                 f"Job {job.id} completed.\n"
                 f"Agents hash current: {spec.digest}\n"
                 f"Agents hash diff: {agents_hash_diff}\n"
-                f"Merge strategy: {settings.merge_conflict_behavior}"
+                f"Merge strategy: {settings.merge_conflict_behavior}\n\n"
+                f"{context_report}"
             )
             pr_url = repo_ops.open_pull_request(
                 job_id=job.id,
@@ -194,25 +301,26 @@ def execute_job(self, job_id: str):
             with session_scope() as session:
                 job = repo.get_job(session, job_id)
                 repo.append_pr_link(session, job, pr_url)
+                repo.update_job_status(session, job, JobStatus.COMPLETED)
                 session.commit()
         else:
             with session_scope() as session:
                 job = repo.get_job(session, job_id)
-                repo.append_pr_link(session, job, f"https://example.com/pr/{job.id}")
+                repo.update_job_status(session, job, JobStatus.COMPLETED)
                 session.commit()
-        with session_scope() as session:
-            job = repo.get_job(session, job_id)
-            repo.update_job_status(session, job, JobStatus.COMPLETED)
-            session.commit()
     except Exception as exc:
-        logger.error("job_failed", job_id=job_id, error=str(exc))
+        logger.exception("job_failed", job_id=job_id)
         with session_scope() as session:
             job = repo.get_job(session, job_id)
             if job:
-                job.last_action = f"failed: {exc}"
                 repo.update_job_status(session, job, JobStatus.FAILED)
                 session.commit()
-        raise
+        raise exc
 
 
-enqueue_job = execute_job
+class _EnqueueProxy:
+    def delay(self, job_id: str) -> None:
+        execute_job.delay(job_id)
+
+
+enqueue_job = _EnqueueProxy()

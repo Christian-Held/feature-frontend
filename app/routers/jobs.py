@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -35,6 +35,18 @@ class JobResponse(BaseModel):
     pr_links: List[str]
 
 
+class ContextDiagnosticsResponse(BaseModel):
+    job_id: str
+    step_id: Optional[str]
+    tokens_final: int
+    tokens_clipped: int
+    compact_ops: int
+    budget: dict[str, Any]
+    sources: List[dict]
+    dropped: List[dict]
+    hints: List[str]
+
+
 @router.get("/{job_id}", response_model=JobResponse)
 def get_job(job_id: str, session: Session = Depends(deps.get_db)) -> JobResponse:
     job = repo.get_job(session, job_id)
@@ -65,3 +77,22 @@ def cancel_job(job_id: str, session: Session = Depends(deps.get_db)):
     repo.mark_job_cancelled(session, job)
     session.commit()
     return {"status": "cancelled"}
+
+
+@router.get("/{job_id}/context", response_model=ContextDiagnosticsResponse)
+def get_job_context(job_id: str, session: Session = Depends(deps.get_db)) -> ContextDiagnosticsResponse:
+    metric = repo.get_latest_context_metric(session, job_id)
+    if not metric or not metric.details:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Context diagnostics not found")
+    details = metric.details
+    return ContextDiagnosticsResponse(
+        job_id=job_id,
+        step_id=metric.step_id,
+        tokens_final=metric.tokens_final or details.get("tokens_final", 0),
+        tokens_clipped=metric.tokens_clipped or details.get("tokens_clipped", 0),
+        compact_ops=metric.compact_ops or details.get("compact_ops", 0),
+        budget=details.get("budget", {}),
+        sources=details.get("sources", []),
+        dropped=details.get("dropped", []),
+        hints=details.get("hints", []),
+    )
