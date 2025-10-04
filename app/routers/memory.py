@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -45,12 +45,26 @@ def get_memory(job_id: str, session: Session = Depends(deps.get_db)) -> MemoryRe
 
 
 @router.post("/{job_id}/files", status_code=status.HTTP_201_CREATED)
-def upload_file(job_id: str, file: UploadFile = File(...), session: Session = Depends(deps.get_db)):
-    store = MemoryStore()
-    data = file.file.read()
+async def upload_file(job_id: str, request: Request, session: Session = Depends(deps.get_db)):
+    try:
+        form = await request.form()
+    except RuntimeError as exc:
+        logger.error("memory_file_upload_failed", reason="python-multipart missing", error=str(exc))
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="python-multipart ist nicht installiert. Bitte Abhängigkeit hinzufügen, um Datei-Uploads zu aktivieren.",
+        ) from exc
+
+    upload = form.get("file")
+    if not isinstance(upload, UploadFile):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Feld 'file' fehlt oder ist ungültig.")
+
+    data = await upload.read()
     if not data:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file")
-    path, size = store.add_file(session, job_id, file.filename, data)
+
+    store = MemoryStore()
+    path, size = store.add_file(session, job_id, upload.filename, data)
     session.commit()
     logger.info("memory_file_uploaded", job_id=job_id, path=path, size=size)
     return {"path": path, "bytes": size}
