@@ -12,6 +12,20 @@ function Write-RunLog {
     Write-Host ("[$Scope] $Message")
 }
 
+function Get-RepoRoot {
+    param(
+        [string]$ScriptPath
+    )
+
+    if (-not $ScriptPath) {
+        throw 'ScriptPath darf nicht leer sein.'
+    }
+
+    $scriptsDir = Split-Path -Path $ScriptPath -Parent
+    $rootCandidate = Resolve-Path -Path (Join-Path $scriptsDir '..')
+    return $rootCandidate
+}
+
 function Import-DotEnv {
     param(
         [string]$Path = '.env'
@@ -23,56 +37,66 @@ function Import-DotEnv {
     }
 
     Write-RunLog 'run' "Lade Umgebungsvariablen aus $Path ..."
+    $regex = '^(?:export\s+)?(?<key>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*(?<value>.*)$'
     Get-Content -Path $Path | ForEach-Object {
         $line = $_.Trim()
         if ([string]::IsNullOrWhiteSpace($line) -or $line.StartsWith('#')) {
             return
         }
 
-        $parts = $line.Split('=', 2)
-        if ($parts.Count -lt 2) {
+        $match = [regex]::Match($line, $regex)
+        if (-not $match.Success) {
             return
         }
 
-        $name = $parts[0].Trim()
-        if ([string]::IsNullOrWhiteSpace($name)) {
-            return
-        }
+        $name = $match.Groups['key'].Value
+        $value = $match.Groups['value'].Value.Trim()
 
-        $value = $parts[1].Trim()
         if ($value.StartsWith('"') -and $value.EndsWith('"')) {
-            $value = $value.Trim('"')
+            $value = $value.Substring(1, $value.Length - 2).Replace('\\"', '"')
         } elseif ($value.StartsWith("'") -and $value.EndsWith("'")) {
-            $value = $value.Trim("'")
+            $value = $value.Substring(1, $value.Length - 2)
+        } else {
+            $hashIndex = $value.IndexOf('#')
+            if ($hashIndex -ge 0) {
+                $value = $value.Substring(0, $hashIndex)
+            }
+            $value = $value.Trim()
         }
 
-        Set-Item -Path "Env:$name" -Value $value
+        Set-Item -Path ("Env:{0}" -f $name) -Value $value
     }
 }
 
 function Start-UvJob {
     param(
         [string]$Name,
-        [string[]]$Arguments
+        [string[]]$Arguments,
+        [string]$WorkingDirectory
     )
 
     Start-Job -Name $Name -ScriptBlock {
-        param($InnerName, $InnerArgs)
+        param($InnerName, $InnerArgs, $InnerWorkingDirectory)
         $ErrorActionPreference = 'Stop'
         Set-StrictMode -Version Latest
+        Set-Location -Path $InnerWorkingDirectory
 
         & uv @InnerArgs 2>&1 | ForEach-Object { $_ }
         $code = $LASTEXITCODE
         if ($code -ne 0) {
             throw "Process '$InnerName' exited with code $code"
         }
-    } -ArgumentList @($Name, $Arguments)
+    } -ArgumentList @($Name, $Arguments, $WorkingDirectory)
 }
+
+$repoRoot = Get-RepoRoot -ScriptPath $PSCommandPath
+Set-Location -Path $repoRoot
+Write-RunLog 'run' "Arbeitsverzeichnis: $repoRoot"
 
 $jobs = @()
 
 try {
-    Import-DotEnv
+    Import-DotEnv -Path (Join-Path $repoRoot '.env')
 
     if (-not $env:APP_PORT -or [string]::IsNullOrWhiteSpace($env:APP_PORT)) {
         $env:APP_PORT = '3000'
@@ -86,8 +110,14 @@ try {
 
     Write-RunLog 'run' 'Starte API und Worker (Ctrl+C zum Beenden)...'
     $jobs = @(
-        [pscustomobject]@{ Name = 'api'; Job = Start-UvJob -Name 'api' -Arguments $apiArgs },
-        [pscustomobject]@{ Name = 'celery'; Job = Start-UvJob -Name 'celery' -Arguments $workerArgs }
+        [pscustomobject]@{
+            Name = 'api'
+            Job  = Start-UvJob -Name 'api' -Arguments $apiArgs -WorkingDirectory $repoRoot
+        },
+        [pscustomobject]@{
+            Name = 'celery'
+            Job  = Start-UvJob -Name 'celery' -Arguments $workerArgs -WorkingDirectory $repoRoot
+        }
     )
 
     $exitCode = 0
