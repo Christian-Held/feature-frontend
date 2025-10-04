@@ -18,12 +18,16 @@ class CTOAgent:
         self.model = model
         self.dry_run = dry_run
 
-    async def create_plan(self, task: str) -> tuple[List[Dict[str, str]], int, int]:
-        context = f"Task: {task}"
-        section = self.spec.section("CTO-AI")
-        prompt = build_prompt(section, context)
+    async def create_plan(
+        self, task: str, *, messages: List[Dict[str, str]] | None = None
+    ) -> tuple[List[Dict[str, str]], int, int]:
+        if messages is None:
+            context = f"Task: {task}"
+            section = self.spec.section("CTO-AI")
+            prompt = build_prompt(section, context)
+            messages = [{"role": "system", "content": prompt}]
         logger.info("cto_plan_request", model=self.model)
-        response = await self.provider.generate(model=self.model, messages=[{"role": "system", "content": prompt}])
+        response = await self.provider.generate(model=self.model, messages=messages)
         plan_text = response.text
         if self.dry_run:
             logger.info("cto_plan_dry_run")

@@ -18,11 +18,15 @@ class CoderAgent:
         self.model = model
         self.dry_run = dry_run
 
-    async def implement_step(self, task: str, step: Dict[str, str]) -> Dict[str, str]:
-        context = json.dumps({"task": task, "step": step}, ensure_ascii=False, indent=2)
-        prompt = build_prompt(self.spec.section("CODER-AI"), context)
+    async def implement_step(
+        self, task: str, step: Dict[str, str], *, messages: list[Dict[str, str]] | None = None
+    ) -> Dict[str, str]:
+        if messages is None:
+            context = json.dumps({"task": task, "step": step}, ensure_ascii=False, indent=2)
+            prompt = build_prompt(self.spec.section("CODER-AI"), context)
+            messages = [{"role": "system", "content": prompt}]
         logger.info("coder_step_request", model=self.model, step=step.get("title"))
-        response = await self.provider.generate(model=self.model, messages=[{"role": "system", "content": prompt}])
+        response = await self.provider.generate(model=self.model, messages=messages)
         if self.dry_run:
             logger.info("coder_step_dry_run")
             return {

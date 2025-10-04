@@ -18,6 +18,10 @@ class BaseLLMProvider(ABC):
     async def generate(self, *, model: str, messages: List[Dict[str, str]], **kwargs: Any) -> LLMResponse:
         ...
 
+    def count_tokens(self, messages: List[Dict[str, str]]) -> int:
+        combined = "\n".join(msg.get("content", "") for msg in messages)
+        return estimate_tokens(combined)
+
 
 def estimate_tokens(text: str) -> int:
     # Cheap heuristic: 1 token ≈ 4 chars
@@ -32,3 +36,6 @@ class DryRunLLMProvider(BaseLLMProvider):
         response = f"DRY-RUN ({model}) RESPONSE: {combined[:200]}"
         tokens = estimate_tokens(combined)
         return LLMResponse(text=response, tokens_in=tokens, tokens_out=tokens // 2)
+
+    def count_tokens(self, messages: List[Dict[str, str]]) -> int:  # pragma: no cover - trivial
+        return super().count_tokens(messages)

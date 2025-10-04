@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, JSON, LargeBinary, String, Text
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
@@ -77,3 +77,61 @@ class CostEntryModel(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     job = relationship("JobModel", back_populates="costs")
+
+
+class MemoryItemModel(Base):
+    __tablename__ = "memory_items"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    job_id = Column(String, ForeignKey("jobs.id"), nullable=False)
+    kind = Column(String, nullable=False)
+    key = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class MemoryFileModel(Base):
+    __tablename__ = "memory_files"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    job_id = Column(String, ForeignKey("jobs.id"), nullable=False)
+    path = Column(String, nullable=False)
+    bytes = Column(LargeBinary, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class MessageSummaryModel(Base):
+    __tablename__ = "message_summaries"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    job_id = Column(String, ForeignKey("jobs.id"), nullable=False)
+    step_id = Column(String, nullable=True)
+    role = Column(String, nullable=False)
+    summary = Column(Text, nullable=False)
+    tokens = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class EmbeddingIndexModel(Base):
+    __tablename__ = "embedding_index"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    scope = Column(String, nullable=False)
+    ref_id = Column(String, nullable=False)
+    text = Column(Text, nullable=False)
+    vector = Column(JSON, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ContextMetricModel(Base):
+    __tablename__ = "context_metrics"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    job_id = Column(String, ForeignKey("jobs.id"), nullable=False)
+    step_id = Column(String, nullable=True)
+    tokens_final = Column(Integer, default=0)
+    tokens_clipped = Column(Integer, default=0)
+    compact_ops = Column(Integer, default=0)
+    details = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)

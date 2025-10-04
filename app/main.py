@@ -8,7 +8,7 @@ from app.db.engine import get_engine
 from app.db.models import Base
 from app.agents.prompts import parse_agents_file
 
-from .routers import health, jobs, tasks
+from .routers import context_api, health, jobs, memory, tasks
 
 logger = get_logger(__name__)
 
@@ -28,6 +28,8 @@ def create_application() -> FastAPI:
     app.include_router(health.router)
     app.include_router(tasks.router)
     app.include_router(jobs.router)
+    app.include_router(context_api.router)
+    app.include_router(memory.router)
 
     return app
 

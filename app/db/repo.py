@@ -5,7 +5,14 @@ from typing import Iterable, List, Optional
 
 from sqlalchemy.orm import Session
 
-from .models import CostEntryModel, JobModel, JobStatus, JobStepModel
+from .models import (
+    ContextMetricModel,
+    CostEntryModel,
+    JobModel,
+    JobStatus,
+    JobStepModel,
+    MessageSummaryModel,
+)
 
 
 def create_job(
@@ -121,3 +128,50 @@ def get_steps(session: Session, job_id: str) -> Iterable[JobStepModel]:
 
 def get_step(session: Session, step_id: str) -> Optional[JobStepModel]:
     return session.get(JobStepModel, step_id)
+
+
+def add_message_summary(
+    session: Session,
+    *,
+    job_id: str,
+    step_id: Optional[str],
+    role: str,
+    summary: str,
+    tokens: int,
+) -> MessageSummaryModel:
+    record = MessageSummaryModel(job_id=job_id, step_id=step_id, role=role, summary=summary, tokens=tokens)
+    session.add(record)
+    session.flush()
+    return record
+
+
+def record_context_metric(
+    session: Session,
+    *,
+    job_id: str,
+    step_id: Optional[str],
+    tokens_final: int,
+    tokens_clipped: int,
+    compact_ops: int,
+    details,
+) -> ContextMetricModel:
+    metric = ContextMetricModel(
+        job_id=job_id,
+        step_id=step_id,
+        tokens_final=tokens_final,
+        tokens_clipped=tokens_clipped,
+        compact_ops=compact_ops,
+        details=details,
+    )
+    session.add(metric)
+    session.flush()
+    return metric
+
+
+def get_latest_context_metric(session: Session, job_id: str) -> Optional[ContextMetricModel]:
+    return (
+        session.query(ContextMetricModel)
+        .filter(ContextMetricModel.job_id == job_id)
+        .order_by(ContextMetricModel.created_at.desc())
+        .first()
+    )
