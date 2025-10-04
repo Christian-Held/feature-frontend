@@ -4,23 +4,23 @@ version = "0.1.0"
 description = "Production-ready orchestration service for automated software delivery"
 authors = [{ name = "AutoDev AI", email = "ops@example.com" }]
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12,<3.13"
 dependencies = [
-    "fastapi",
-    "uvicorn[standard]",
+    "anyio",
     "celery>=5.3",
-    "redis>=5.0",
-    "structlog>=24.1",
-    "sqlalchemy>=2.0",
-    "pydantic-settings>=2.2",
-    "python-dotenv",
+    "fastapi",
+    "GitPython>=3.1",
+    "gradio",
     "httpx>=0.25",
     "PyGithub>=2.1",
-    "GitPython>=3.1",
-    "python-dateutil",
-    "tenacity",
-    "pytz",
-    "typing-extensions",
+    "pydantic-settings>=2.2",
+    "python-dotenv",
+    "python-multipart",
+    "redis>=5.0",
+    "requests",
+    "sqlalchemy>=2.0",
+    "structlog>=24.1",
+    "uvicorn[standard]",
 ]
 
 [project.optional-dependencies]
