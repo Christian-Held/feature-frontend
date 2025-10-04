@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.env
+.venv/
+.uv/
+uv.lock
+poetry.lock
+/data/
+.DS_Store
+.idea/
+.vscode/
+celerybeat-schedule
+*.sqlite3
