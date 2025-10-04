@@ -11,6 +11,58 @@ function Write-SeedLog {
     Write-Host "[seed] $Message"
 }
 
+function Get-RepoRoot {
+    param(
+        [string]$ScriptPath
+    )
+    $scriptsDir = Split-Path -Path $ScriptPath -Parent
+    return Resolve-Path -Path (Join-Path $scriptsDir '..')
+}
+
+function Import-DotEnv {
+    param(
+        [string]$Path
+    )
+
+    if (-not (Test-Path -Path $Path)) {
+        return
+    }
+
+    $regex = '^(?:export\s+)?(?<key>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*(?<value>.*)$'
+    Get-Content -Path $Path | ForEach-Object {
+        $line = $_.Trim()
+        if ([string]::IsNullOrWhiteSpace($line) -or $line.StartsWith('#')) {
+            return
+        }
+
+        $match = [regex]::Match($line, $regex)
+        if (-not $match.Success) {
+            return
+        }
+
+        $name = $match.Groups['key'].Value
+        $value = $match.Groups['value'].Value.Trim()
+
+        if ($value.StartsWith('"') -and $value.EndsWith('"')) {
+            $value = $value.Substring(1, $value.Length - 2).Replace('\\"', '"')
+        } elseif ($value.StartsWith("'") -and $value.EndsWith("'")) {
+            $value = $value.Substring(1, $value.Length - 2)
+        } else {
+            $hashIndex = $value.IndexOf('#')
+            if ($hashIndex -ge 0) {
+                $value = $value.Substring(0, $hashIndex)
+            }
+            $value = $value.Trim()
+        }
+
+        Set-Item -Path ("Env:{0}" -f $name) -Value $value
+    }
+}
+
+$repoRoot = Get-RepoRoot -ScriptPath $PSCommandPath
+Set-Location -Path $repoRoot
+Import-DotEnv -Path (Join-Path $repoRoot '.env')
+
 if (-not $env:APP_PORT -or [string]::IsNullOrWhiteSpace($env:APP_PORT)) {
     $env:APP_PORT = '3000'
 }
@@ -54,20 +106,34 @@ $taskBody = @{
 
 $response = Invoke-RestMethod -Method Post -Uri $taskUrl -ContentType 'application/json' -Body $taskBody
 $jobId = $response.job_id
+if (-not $jobId) {
+    throw 'API Response enthielt keine job_id.'
+}
 Write-SeedLog "Job ID: $jobId"
 
 Write-SeedLog 'Verfolge Job-Status ...'
 do {
     Start-Sleep -Seconds 5
     $job = Invoke-RestMethod -Method Get -Uri "$baseUrl/jobs/$jobId"
-    $progress = if ($job.progress) { $job.progress } else { 'n/a' }
-    Write-SeedLog "Status: $($job.status) | Fortschritt: $progress | Kosten USD: $($job.cost_usd)"
+    $progress = if ($job.progress -ne $null) { $job.progress } else { 'n/a' }
+    $cost = if ($job.cost_usd -ne $null) { '{0:N2}' -f [double]$job.cost_usd } else { 'n/a' }
+    $lastAction = if ($job.last_action) { $job.last_action } else { 'n/a' }
+    Write-SeedLog "Status: $($job.status) | Fortschritt: $progress | Kosten USD: $cost | Letzte Aktion: $lastAction"
 } while ($job.status -in @('pending', 'running'))
 
+$links = @()
 if ($job.pr_links) {
-    Write-SeedLog "PR Links: $($job.pr_links -join ', ')"
+    $links = $job.pr_links
 } elseif ($job.pr_urls) {
-    Write-SeedLog "PR Links: $($job.pr_urls -join ', ')"
+    $links = $job.pr_urls
+}
+
+if ($links.Count -gt 0) {
+    $index = 1
+    foreach ($link in $links) {
+        Write-SeedLog ("PR #{0}: {1}" -f $index, $link)
+        $index++
+    }
 } else {
     Write-SeedLog 'Keine PR erstellt.'
 }

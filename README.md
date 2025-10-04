@@ -19,9 +19,10 @@ Auto Dev Orchestrator ist ein FastAPI- und Celery-basiertes Grundgerüst, das au
 
 ## Quickstart
 1. Kopiere `.env.example` zu `.env` und fülle die benötigten Schlüssel (`OPENAI_API_KEY`, `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO`, `REDIS_URL`, `DB_PATH`, Limits usw.).
-2. Starte eine PowerShell und führe `scripts/setup.ps1` aus. Das Skript ruft `uv sync`, pinnt `uv python` auf 3.12, startet Redis via Docker Compose und wartet, bis Port 6379 erreichbar ist.
-3. Dienste starten mit `scripts/run.ps1`. Das Skript lädt `.env`, setzt die Variablen per `Set-Item`, startet `uvicorn` (API) und den Celery-Worker parallel und zeigt kompakte Logs.
-4. Optional kannst du nach erfolgreichem Health-Check `scripts/seed-demo.ps1` ausführen. Das Skript wartet bis `/health` "ok" liefert und legt anschließend einen Demojob an.
+2. Öffne PowerShell (`pwsh`) im Repo und führe `pwsh -File scripts/setup.ps1` aus. Das Skript synchronisiert alle Abhängigkeiten via `uv sync`, pinnt `uv python` auf CPython 3.12, legt `data/` an, prüft Docker Desktop und startet Redis über Docker Compose.
+3. Starte API und Worker mit `pwsh -File scripts/run.ps1`. Das Skript setzt das Arbeitsverzeichnis auf das Repo-Root, lädt `.env` zuverlässig über das `Env:`-Drive und startet `uv run uvicorn app.main:app` sowie `uv run celery -A app.workers.celery_app worker`.
+4. Öffne für die Weboberfläche ein neues Terminal und starte `uv run python -m webui.app_gradio`. Die UI läuft unabhängig vom Backend und nutzt dieselben REST-Endpunkte.
+5. Optional kannst du nach erfolgreichem Health-Check `pwsh -File scripts/seed-demo.ps1` ausführen. Das Skript pollt `/health` bis zu 60s, legt einen Demo-Task an und verfolgt den Job inkl. Kosten und PR-Links.
 
 ## Tests
 ```powershell
@@ -29,10 +30,10 @@ uv run pytest
 ```
 
 ## Gradio Web UI
-Die Weboberfläche befindet sich in `webui/app_gradio.py`. Sie nutzt Gradio Blocks mit separaten Accordions für Secrets und Settings, kann `.env` lokal speichern und interagiert mit dem Backend über die REST-Endpunkte (`/health`, `/tasks`, `/jobs/{id}`).
+Die Weboberfläche befindet sich in `webui/app_gradio.py` und bleibt vom Python-Paket `app` getrennt. Sie nutzt Gradio Blocks mit separaten Accordions für Secrets und Settings, kann `.env` lokal speichern und interagiert mit dem Backend über die REST-Endpunkte (`/health`, `/tasks`, `/jobs/{id}`).
 
 ```powershell
-python webui/app_gradio.py
+uv run python -m webui.app_gradio
 ```
 
 ## Architektur

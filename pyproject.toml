@@ -9,6 +9,7 @@ dependencies = [
     "anyio",
     "celery>=5.3",
     "fastapi",
+    "pydantic>=2.6",
     "GitPython>=3.1",
     "gradio",
     "httpx>=0.25",
@@ -32,3 +33,5 @@ tests = [
 [tool.pytest.ini_options]
 addopts = "-ra"
 pythonpath = ["."]
+testpaths = ["tests"]
+norecursedirs = ["webui"]
