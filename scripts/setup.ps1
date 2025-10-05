@@ -22,10 +22,100 @@ function Get-RepoRoot {
 }
 
 function Ensure-UvInstalled {
-    if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
-        Write-SetupLog 'Installiere uv via pip ...'
-        python -m pip install --upgrade uv | Out-Null
+    param(
+        [string]$PythonPath
+    )
+
+    if (Get-Command uv -ErrorAction SilentlyContinue) {
+        return
     }
+
+    if (-not $PythonPath) {
+        throw 'Kein Python Interpreter gefunden, um uv zu installieren.'
+    }
+
+    Write-SetupLog "Installiere uv über $PythonPath ..."
+    & $PythonPath -m pip install --upgrade uv | Out-Null
+}
+
+function Test-VersionInRange {
+    param(
+        [Version]$Version,
+        [Version]$Min,
+        [Version]$MaxExclusive
+    )
+
+    if ($null -eq $Version) {
+        return $false
+    }
+
+    return ($Version -ge $Min) -and ($Version -lt $MaxExclusive)
+}
+
+function Get-CompatiblePython {
+    param(
+        [string]$ActivePythonPath
+    )
+
+    $preferredMin = [Version]'3.12.0'
+    $preferredMax = [Version]'3.14.0'
+
+    $candidate = $null
+    $versionOutput = $null
+    $parsedVersion = $null
+
+    if ($ActivePythonPath) {
+        $versionOutput = & $ActivePythonPath --version 2>&1
+        $match = [regex]::Match($versionOutput, 'Python\s+(?<ver>\d+\.\d+\.\d+)')
+        if ($match.Success) {
+            $parsedVersion = [Version]$match.Groups['ver'].Value
+            if (Test-VersionInRange -Version $parsedVersion -Min $preferredMin -MaxExclusive $preferredMax) {
+                return [pscustomobject]@{
+                    Path    = $ActivePythonPath
+                    Version = $parsedVersion
+                    Output  = $versionOutput
+                    Mode    = 'active'
+                }
+            }
+        }
+    }
+
+    $findOutput = @()
+    try {
+        $findOutput = uv python find 'cpython>=3.12,<3.14'
+    } catch {
+        $findOutput = @()
+    }
+
+    if ($findOutput.Count -gt 0) {
+        $candidatePath = $findOutput[0].Trim()
+        if ($candidatePath) {
+            $candidateVersionOutput = & $candidatePath --version 2>&1
+            $candidateMatch = [regex]::Match($candidateVersionOutput, 'Python\s+(?<ver>\d+\.\d+\.\d+)')
+            if ($candidateMatch.Success) {
+                $candidateVersion = [Version]$candidateMatch.Groups['ver'].Value
+                if (Test-VersionInRange -Version $candidateVersion -Min $preferredMin -MaxExclusive $preferredMax) {
+                    return [pscustomobject]@{
+                        Path    = $candidatePath
+                        Version = $candidateVersion
+                        Output  = $candidateVersionOutput
+                        Mode    = 'uv-find'
+                    }
+                }
+            }
+        }
+    }
+
+    if ($ActivePythonPath -and $parsedVersion) {
+        return [pscustomobject]@{
+            Path    = $ActivePythonPath
+            Version = $parsedVersion
+            Output  = $versionOutput
+            Mode    = 'best-effort'
+        }
+    }
+
+    return $null
 }
 
 function Test-TcpPort {
@@ -58,22 +148,40 @@ Set-Location -Path $repoRoot
 Write-SetupLog "Arbeitsverzeichnis: $repoRoot"
 
 Write-SetupLog 'Prüfe Python Installation ...'
-$pythonVersion = (python --version 2>&1)
-if ($LASTEXITCODE -ne 0 -or ($pythonVersion -notmatch '3\.12')) {
-    throw 'Python 3.12 wird benötigt.'
+$preferredRangeMessage = 'Empfohlene Python-Versionen: 3.12 oder 3.13 (3.11/3.14 Best-Effort).'
+Write-SetupLog $preferredRangeMessage
+if ($Force) {
+    Write-SetupLog 'Hinweis: Der Parameter -Force wird nicht mehr benötigt und wird ignoriert.'
 }
-Write-SetupLog "Gefundene Python Version: $pythonVersion"
+$pythonCommand = Get-Command python -ErrorAction SilentlyContinue
+if (-not $pythonCommand) {
+    throw 'Python wurde nicht gefunden. Bitte installieren Sie mindestens Python 3.12.'
+}
 
-Ensure-UvInstalled
+Ensure-UvInstalled -PythonPath $pythonCommand.Path
+
+$pythonInfo = Get-CompatiblePython -ActivePythonPath $pythonCommand.Path
+if (-not $pythonInfo) {
+    throw 'Kein kompatibler Python Interpreter (>=3.12,<3.14) gefunden. Bitte installieren Sie Python 3.12 oder 3.13.'
+}
+
+if ($pythonInfo.Mode -eq 'best-effort') {
+    Write-SetupLog "Hinweis: Aktiver Interpreter $($pythonInfo.Output) liegt außerhalb der empfohlenen Spanne >=3.12,<3.14. Setup läuft im Best-Effort-Modus weiter."
+} else {
+    Write-SetupLog "Nutze Python Interpreter ($($pythonInfo.Mode)): $($pythonInfo.Path) [$($pythonInfo.Output)]"
+}
+
+$env:UV_PROJECT_ENVIRONMENT = (Join-Path $repoRoot '.venv')
+Write-SetupLog "uv Projektumgebung: $env:UV_PROJECT_ENVIRONMENT"
 
 Write-SetupLog 'Synchronisiere Abhängigkeiten mit uv ...'
-uv sync
-
-Write-SetupLog 'Pinne uv python auf Version 3.12 ...'
-if ($Force) {
-    uv python pin 3.12 --force
+if ($pythonInfo.Mode -eq 'best-effort') {
+    Write-SetupLog 'Best-Effort: uv sync nutzt den aktiven Interpreter und kann bei inkompatibler Version fehlschlagen. Empfohlen ist Python 3.12 oder 3.13.'
+}
+if ($pythonInfo.Mode -eq 'uv-find' -or $pythonInfo.Mode -eq 'active' -or $pythonInfo.Mode -eq 'best-effort') {
+    uv sync --extra tests --python $pythonInfo.Path
 } else {
-    uv python pin 3.12
+    uv sync --extra tests
 }
 
 Write-SetupLog 'Stelle Datenverzeichnis bereit ...'
