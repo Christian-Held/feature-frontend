@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -10,6 +11,7 @@ from app import deps
 from app.core.logging import get_logger
 from app.db import repo
 from app.db.models import JobStatus
+from app.services.job_events import emit_job_event_for_id, serialize_job
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 logger = get_logger(__name__)
@@ -26,6 +28,12 @@ class JobResponse(BaseModel):
     id: str
     status: str
     task: str
+    repo_owner: str
+    repo_name: str
+    branch_base: str
+    budget_usd: float
+    max_requests: int
+    max_minutes: int
     cost_usd: float
     tokens_in: int
     tokens_out: int
@@ -33,6 +41,10 @@ class JobResponse(BaseModel):
     progress: float
     last_action: Optional[str]
     pr_links: List[str]
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    model_cto: Optional[str] = None
+    model_coder: Optional[str] = None
 
 
 class ContextDiagnosticsResponse(BaseModel):
@@ -47,26 +59,18 @@ class ContextDiagnosticsResponse(BaseModel):
     hints: List[str]
 
 
+@router.get("/", response_model=List[JobResponse])
+def list_jobs(session: Session = Depends(deps.get_db)) -> List[JobResponse]:
+    jobs = repo.list_jobs(session)
+    return [JobResponse.model_validate(serialize_job(job)) for job in jobs]
+
+
 @router.get("/{job_id}", response_model=JobResponse)
 def get_job(job_id: str, session: Session = Depends(deps.get_db)) -> JobResponse:
     job = repo.get_job(session, job_id)
     if not job:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
-    steps = job.steps
-    completed = len([s for s in steps if s.status == "completed"])
-    progress = completed / len(steps) if steps else (1.0 if job.status == JobStatus.COMPLETED else 0.0)
-    return JobResponse(
-        id=job.id,
-        status=job.status,
-        task=job.task,
-        cost_usd=job.cost_usd or 0.0,
-        tokens_in=job.tokens_in or 0,
-        tokens_out=job.tokens_out or 0,
-        requests_made=job.requests_made or 0,
-        progress=progress,
-        last_action=job.last_action,
-        pr_links=job.pr_links or [],
-    )
+    return JobResponse.model_validate(serialize_job(job))
 
 
 @router.post("/{job_id}/cancel")
@@ -76,6 +80,7 @@ def cancel_job(job_id: str, session: Session = Depends(deps.get_db)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
     repo.mark_job_cancelled(session, job)
     session.commit()
+    emit_job_event_for_id("job.cancelled", job_id, session=session)
     return {"status": "cancelled"}
 
 

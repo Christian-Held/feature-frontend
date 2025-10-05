@@ -21,6 +21,7 @@ from app.db.models import JobStatus
 from app.git import repo_ops
 from app.llm.openai_provider import OpenAILLMProvider
 from app.llm.provider import BaseLLMProvider, DryRunLLMProvider
+from app.services.job_events import emit_job_event_for_id
 
 from .celery_app import celery_app
 
@@ -158,6 +159,7 @@ def execute_job(self, job_id: str):
             model_coder = job.model_coder or settings.model_coder
             repo.update_job_status(session, job, JobStatus.RUNNING)
             session.commit()
+        emit_job_event_for_id("job.updated", job_id)
         cto_agent = CTOAgent(provider_cto, spec, model_cto, settings.dry_run)
         base_prompt = build_prompt(spec.section("CTO-AI"), f"Task: {job_task}")
         base_messages = [{"role": "system", "content": base_prompt}]
@@ -198,6 +200,7 @@ def execute_job(self, job_id: str):
                 tokens=plan_tokens_out,
             )
             session.commit()
+        emit_job_event_for_id("job.updated", job_id)
         with session_scope() as session:
             job = repo.get_job(session, job_id)
             job.last_action = "plan"
@@ -206,6 +209,7 @@ def execute_job(self, job_id: str):
                 step_model = repo.create_step(session, job, step.get("title", "Step"), "plan")
                 repo.update_step(session, step_model, status="completed", details="planned")
             session.commit()
+        emit_job_event_for_id("job.updated", job_id)
         feature_branch = f"auto/{job_id[:8]}"
         if settings.dry_run:
             repo_path = Path("./data/dry-run") / job_id
@@ -303,11 +307,13 @@ def execute_job(self, job_id: str):
                 repo.append_pr_link(session, job, pr_url)
                 repo.update_job_status(session, job, JobStatus.COMPLETED)
                 session.commit()
+            emit_job_event_for_id("job.completed", job_id)
         else:
             with session_scope() as session:
                 job = repo.get_job(session, job_id)
                 repo.update_job_status(session, job, JobStatus.COMPLETED)
                 session.commit()
+            emit_job_event_for_id("job.completed", job_id)
     except Exception as exc:
         logger.exception("job_failed", job_id=job_id)
         with session_scope() as session:
@@ -315,6 +321,7 @@ def execute_job(self, job_id: str):
             if job:
                 repo.update_job_status(session, job, JobStatus.FAILED)
                 session.commit()
+        emit_job_event_for_id("job.failed", job_id)
         raise exc
 
 

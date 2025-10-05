@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app import deps
 from app.core.logging import get_logger
 from app.db import repo
+from app.services.job_events import emit_job_event_for_id
 from app.workers.job_worker import enqueue_job
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -29,7 +30,7 @@ class TaskCreateResponse(BaseModel):
     job_id: str
 
 
-@router.post("/", response_model=TaskCreateResponse, status_code=status.HTTP_202_ACCEPTED)
+@router.post("", response_model=TaskCreateResponse, status_code=status.HTTP_202_ACCEPTED)
 async def create_task(
     payload: TaskCreateRequest,
     request: Request,
@@ -51,5 +52,6 @@ async def create_task(
     )
     session.commit()
     enqueue_job.delay(job.id)
+    emit_job_event_for_id("job.created", job.id, session=session)
     logger.info("task_enqueued", job_id=job.id)
     return TaskCreateResponse(job_id=job.id)
