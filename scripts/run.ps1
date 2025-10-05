@@ -50,16 +50,25 @@ function Import-DotEnv {
         }
 
         $name = $match.Groups['key'].Value
-        $value = $match.Groups['value'].Value.Trim()
+        $value = $match.Groups['value'].Value
+        $trimmedValue = $value.Trim()
 
-        if ($value.StartsWith('"') -and $value.EndsWith('"')) {
-            $value = $value.Substring(1, $value.Length - 2).Replace('\\"', '"')
-        } elseif ($value.StartsWith("'") -and $value.EndsWith("'")) {
-            $value = $value.Substring(1, $value.Length - 2)
+        if ($trimmedValue.StartsWith('"') -and $trimmedValue.EndsWith('"')) {
+            $value = $trimmedValue.Substring(1, $trimmedValue.Length - 2).Replace('\\"', '"')
+        } elseif ($trimmedValue.StartsWith("'") -and $trimmedValue.EndsWith("'")) {
+            $value = $trimmedValue.Substring(1, $trimmedValue.Length - 2)
         } else {
-            $hashIndex = $value.IndexOf('#')
-            if ($hashIndex -ge 0) {
-                $value = $value.Substring(0, $hashIndex)
+            $commentIndex = -1
+            for ($i = 0; $i -lt $value.Length; $i++) {
+                if ($value[$i] -eq '#') {
+                    if ($i -gt 0 -and [char]::IsWhiteSpace($value[$i - 1])) {
+                        $commentIndex = $i
+                        break
+                    }
+                }
+            }
+            if ($commentIndex -ge 0) {
+                $value = $value.Substring(0, $commentIndex)
             }
             $value = $value.Trim()
         }
