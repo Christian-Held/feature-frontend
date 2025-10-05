@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  test:
+    name: tests (python ${{ matrix.python-version }} on ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.12", "3.13"]
+    env:
+      UV_PROJECT_ENVIRONMENT: .venv
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        id: setup-python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install uv
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade uv
+      - name: Sync dependencies
+        shell: bash
+        env:
+          PYTHON_PATH: ${{ steps.setup-python.outputs.python-path }}
+        run: |
+          set -euo pipefail
+          uv sync --python "$PYTHON_PATH" --extra tests
+      - name: Run tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run pytest
+      - name: API smoke test (/health)
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --log-level warning &
+          server_pid=$!
+          cleanup() {
+            if kill -0 "$server_pid" 2>/dev/null; then
+              kill "$server_pid" 2>/dev/null || true
+              wait "$server_pid" 2>/dev/null || true
+            fi
+          }
+          trap cleanup EXIT
+          uv run python - <<'PY'
+import asyncio
+import sys
+import httpx
+
+async def main() -> None:
+    url = "http://127.0.0.1:8000/health"
+    async with httpx.AsyncClient() as client:
+        for attempt in range(30):
+            try:
+                response = await client.get(url, timeout=1.0)
+                response.raise_for_status()
+                data = response.json()
+                if data.get("ok"):
+                    return
+            except Exception:
+                await asyncio.sleep(1)
+        raise SystemExit("Health check failed after waiting for API startup")
+
+asyncio.run(main())
+PY
