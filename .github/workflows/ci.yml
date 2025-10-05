@@ -34,7 +34,7 @@ jobs:
           PYTHON_PATH: ${{ steps.setup-python.outputs.python-path }}
         run: |
           set -euo pipefail
-          uv sync --python "$PYTHON_PATH"
+          uv sync --python "$PYTHON_PATH" --extra tests
       - name: Run tests
         shell: bash
         run: |
