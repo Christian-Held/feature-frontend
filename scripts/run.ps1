@@ -102,6 +102,18 @@ $repoRoot = Get-RepoRoot -ScriptPath $PSCommandPath
 Set-Location -Path $repoRoot
 Write-RunLog 'run' "Arbeitsverzeichnis: $repoRoot"
 
+$env:UV_PROJECT_ENVIRONMENT = (Join-Path $repoRoot '.venv')
+Write-RunLog 'run' "uv Projektumgebung: $env:UV_PROJECT_ENVIRONMENT"
+
+try {
+    $pythonInfo = uv run -- python --version 2>&1
+    if ($pythonInfo) {
+        Write-RunLog 'run' "uv Python: $pythonInfo"
+    }
+} catch {
+    Write-RunLog 'run' "Hinweis: Konnte Python-Version aus uv nicht ermitteln: $($_.Exception.Message)"
+}
+
 $jobs = @()
 
 try {
