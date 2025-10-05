@@ -16,6 +16,7 @@ const statusOrder: Record<Job['status'], number> = {
   pending: 1,
   completed: 2,
   failed: 3,
+  cancelled: 4,
 }
 
 export function JobList({ selectedJobId, onSelect }: JobListProps) {
@@ -25,12 +26,16 @@ export function JobList({ selectedJobId, onSelect }: JobListProps) {
     refetchInterval: 60_000,
   })
 
+  const jobTimestamp = (job: Job) => new Date(job.updated_at ?? job.created_at ?? 0).getTime()
+
   const jobs = useMemo(() => {
     if (!data) return []
     return [...data].sort((a, b) => {
       const statusDiff = statusOrder[a.status] - statusOrder[b.status]
       if (statusDiff !== 0) return statusDiff
-      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+      const updatedA = jobTimestamp(a)
+      const updatedB = jobTimestamp(b)
+      return updatedB - updatedA
     })
   }, [data])
 
@@ -58,7 +63,7 @@ export function JobList({ selectedJobId, onSelect }: JobListProps) {
         {!isLoading && !isError && jobs.length === 0 && (
           <div className="flex h-48 flex-col items-center justify-center gap-1 text-sm text-slate-400">
             <p>No jobs yet.</p>
-            <p className="text-xs text-slate-500">Create your first inference task to see it here.</p>
+            <p className="text-xs text-slate-500">Create your first orchestration task to see it here.</p>
           </div>
         )}
         <ul className="space-y-2">
@@ -71,11 +76,13 @@ export function JobList({ selectedJobId, onSelect }: JobListProps) {
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-white">{job.name}</p>
+                  <p className="text-sm font-medium text-white">{job.task}</p>
                   <Badge variant={job.status}>{job.status}</Badge>
                 </div>
                 <div className="flex items-center justify-between text-xs text-slate-400">
-                  <p>Updated {new Date(job.updatedAt).toLocaleTimeString()}</p>
+                  <p>
+                    Updated {new Date(job.updated_at ?? job.created_at ?? Date.now()).toLocaleTimeString()}
+                  </p>
                   {typeof job.progress === 'number' && (
                     <span className="text-slate-300">{Math.round(job.progress * 100)}%</span>
                   )}

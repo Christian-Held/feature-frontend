@@ -55,36 +55,92 @@ export function JobDetails({ jobId }: JobDetailsProps) {
                   <dd className="font-mono">{job.id}</dd>
                 </div>
                 <div className="flex justify-between gap-2">
+                  <dt className="text-slate-500">Repository</dt>
+                  <dd>
+                    {job.repo_owner}/{job.repo_name}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-slate-500">Base branch</dt>
+                  <dd>{job.branch_base}</dd>
+                </div>
+                <div className="flex justify-between gap-2">
                   <dt className="text-slate-500">Created</dt>
-                  <dd>{new Date(job.createdAt).toLocaleString()}</dd>
+                  <dd>{job.created_at ? new Date(job.created_at).toLocaleString() : '–'}</dd>
                 </div>
                 <div className="flex justify-between gap-2">
                   <dt className="text-slate-500">Updated</dt>
-                  <dd>{new Date(job.updatedAt).toLocaleString()}</dd>
+                  <dd>{job.updated_at ? new Date(job.updated_at).toLocaleString() : '–'}</dd>
                 </div>
               </dl>
             </div>
             <div className="rounded-xl border border-slate-800/80 bg-slate-950/60 p-4">
-              <h4 className="text-sm font-semibold text-white">Input Payload</h4>
-              <pre className="mt-3 max-h-40 overflow-auto rounded-lg bg-slate-900/80 p-3 text-xs text-slate-300">
-                {JSON.stringify(job.input ?? {}, null, 2)}
-              </pre>
+              <h4 className="text-sm font-semibold text-white">Execution</h4>
+              <dl className="mt-3 space-y-2 text-xs text-slate-300">
+                <div className="flex justify-between gap-2">
+                  <dt className="text-slate-500">Progress</dt>
+                  <dd>{Math.round((job.progress ?? 0) * 100)}%</dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-slate-500">Requests used</dt>
+                  <dd>
+                    {job.requests_made} / {job.max_requests}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-slate-500">Last action</dt>
+                  <dd>{job.last_action ?? 'n/a'}</dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-slate-500">Models</dt>
+                  <dd className="text-right">
+                    CTO: {job.model_cto ?? 'default'}
+                    <br />
+                    Coder: {job.model_coder ?? 'default'}
+                  </dd>
+                </div>
+              </dl>
             </div>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="rounded-xl border border-slate-800/80 bg-slate-950/60 p-4">
-              <h4 className="text-sm font-semibold text-white">Output</h4>
-              <TextArea className="mt-3 h-40" readOnly value={job.output ?? 'Waiting for output…'} />
+              <h4 className="text-sm font-semibold text-white">Task</h4>
+              <TextArea className="mt-3 h-40" readOnly value={job.task} />
             </div>
             <div className="rounded-xl border border-slate-800/80 bg-slate-950/60 p-4">
-              <h4 className="text-sm font-semibold text-white">Logs</h4>
-              <div className="mt-3 max-h-40 space-y-1 overflow-auto rounded-lg bg-slate-900/70 p-3 text-xs font-mono text-slate-300">
-                {(job.logs ?? ['Logs will stream as the job runs.']).map((line, index) => (
-                  <p key={`${line}-${index}`}>{line}</p>
-                ))}
-              </div>
+              <h4 className="text-sm font-semibold text-white">Budget & usage</h4>
+              <dl className="mt-3 space-y-2 text-xs text-slate-300">
+                <div className="flex justify-between gap-2">
+                  <dt className="text-slate-500">Budget</dt>
+                  <dd>${job.budget_usd.toFixed(2)}</dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-slate-500">Cost</dt>
+                  <dd>${job.cost_usd.toFixed(2)}</dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-slate-500">Tokens</dt>
+                  <dd>
+                    in: {job.tokens_in} · out: {job.tokens_out}
+                  </dd>
+                </div>
+              </dl>
             </div>
           </div>
+          {job.pr_links.length > 0 && (
+            <div className="rounded-xl border border-slate-800/80 bg-slate-950/60 p-4">
+              <h4 className="text-sm font-semibold text-white">Pull requests</h4>
+              <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-sky-300">
+                {job.pr_links.map((link) => (
+                  <li key={link}>
+                    <a href={link} target="_blank" rel="noreferrer" className="hover:underline">
+                      {link}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </Card>

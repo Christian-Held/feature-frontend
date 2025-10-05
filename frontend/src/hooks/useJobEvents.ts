@@ -34,6 +34,10 @@ export function useJobEvents() {
             }
             return [data.payload, ...jobs]
           })
+          queryClient.setQueryData<Job>(['job', data.payload.id], (current) => ({
+            ...(current ?? data.payload),
+            ...data.payload,
+          }))
         } catch (error) {
           console.error('Failed to parse job event', error)
         }

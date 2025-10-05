@@ -1,4 +1,4 @@
-export type JobStatus = 'pending' | 'running' | 'completed' | 'failed';
+export type JobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 
 export interface EnvVariable {
   key: string;
@@ -20,25 +20,56 @@ export interface ModelConfig {
   description?: string;
   variants: ModelVariant[];
   selectedVariant?: string;
-  parameters: Record<string, string | number | boolean>;
+  parameters: Record<string, string>;
+}
+
+export interface BudgetGuard {
+  budget_usd_max: number;
+  max_requests: number;
+  max_wallclock_minutes: number;
+}
+
+export interface HealthResponse {
+  ok: boolean;
+  db: boolean;
+  redis: boolean;
+  version: string;
+  budgetGuard: BudgetGuard;
 }
 
 export interface Job {
   id: string;
-  name: string;
   status: JobStatus;
-  createdAt: string;
-  updatedAt: string;
-  progress?: number;
-  input?: Record<string, unknown>;
-  output?: string;
-  logs?: string[];
+  task: string;
+  repo_owner: string;
+  repo_name: string;
+  branch_base: string;
+  budget_usd: number;
+  max_requests: number;
+  max_minutes: number;
+  model_cto?: string | null;
+  model_coder?: string | null;
+  cost_usd: number;
+  tokens_in: number;
+  tokens_out: number;
+  requests_made: number;
+  progress: number;
+  last_action?: string | null;
+  pr_links: string[];
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
-export interface CreateJobRequest {
-  name: string;
-  modelId: string;
-  payload: Record<string, unknown>;
+export interface CreateTaskRequest {
+  task: string;
+  repo_owner: string;
+  repo_name: string;
+  branch_base: string;
+  budgetUsd: number;
+  maxRequests: number;
+  maxMinutes: number;
+  modelCTO?: string;
+  modelCoder?: string;
 }
 
 export interface FileEntry {
@@ -50,7 +81,7 @@ export interface FileEntry {
 }
 
 export interface JobEvent {
-  type: 'job.created' | 'job.updated' | 'job.completed' | 'job.failed';
+  type: 'job.created' | 'job.updated' | 'job.completed' | 'job.failed' | 'job.cancelled';
   payload: Job;
 }
 
@@ -62,7 +93,7 @@ export class ApiClient {
   private readonly baseUrl: string
 
   constructor(baseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000') {
-    this.baseUrl = baseUrl
+    this.baseUrl = baseUrl.replace(/\/$/, '')
   }
 
   private get headers(): HeadersInit {
@@ -115,18 +146,19 @@ export class ApiClient {
   }
 
   listJobs() {
-    return this.request<Job[]>('/api/jobs');
+    return this.request<Job[]>('/jobs');
   }
 
-  createJob(body: CreateJobRequest) {
-    return this.request<Job>('/api/jobs', {
+  createTask(body: CreateTaskRequest) {
+    return this.request<{ job_id: string }>('/tasks', {
       method: 'POST',
       body: JSON.stringify(body),
-    });
+    })
+      .then((response) => this.getJob(response.job_id));
   }
 
   getJob(jobId: string) {
-    return this.request<Job>(`/api/jobs/${encodeURIComponent(jobId)}`);
+    return this.request<Job>(`/jobs/${encodeURIComponent(jobId)}`);
   }
 
   listFiles(path = '/') {
@@ -136,6 +168,10 @@ export class ApiClient {
     }
     const query = params.toString();
     return this.request<FileEntry[]>(`/api/files${query ? `?${query}` : ''}`);
+  }
+
+  getHealth() {
+    return this.request<HealthResponse>('/health/');
   }
 
   get websocketUrl() {
