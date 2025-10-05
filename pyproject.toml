@@ -4,30 +4,30 @@ version = "0.1.0"
 description = "Production-ready orchestration service for automated software delivery"
 authors = [{ name = "AutoDev AI", email = "ops@example.com" }]
 readme = "README.md"
-requires-python = ">=3.12,<3.13"
+requires-python = ">=3.12,<3.14"
 dependencies = [
-    "anyio",
-    "celery>=5.3",
-    "fastapi",
-    "pydantic>=2.6",
-    "GitPython>=3.1",
-    "gradio",
-    "httpx>=0.25",
-    "PyGithub>=2.1",
-    "pydantic-settings>=2.2",
-    "python-dotenv",
-    "python-multipart",
-    "redis>=5.0",
-    "requests",
-    "sqlalchemy>=2.0",
+    "anyio>=4.4",
+    "celery>=5.4",
+    "fastapi>=0.115",
+    "pydantic>=2.7",
+    "GitPython>=3.1.44",
+    "gradio>=4.44",
+    "httpx>=0.27",
+    "PyGithub>=2.3",
+    "pydantic-settings>=2.4",
+    "python-dotenv>=1.0",
+    "python-multipart>=0.0.9",
+    "redis>=5.0.4",
+    "requests>=2.32",
+    "sqlalchemy>=2.0.34",
     "structlog>=24.1",
-    "uvicorn[standard]",
+    "uvicorn[standard]>=0.30",
 ]
 
 [project.optional-dependencies]
 tests = [
-    "pytest",
-    "pytest-asyncio",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.23",
 ]
 
 [tool.pytest.ini_options]
