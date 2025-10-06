@@ -1,6 +1,8 @@
 import { Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { DashboardPage } from './pages/DashboardPage'
+import { BillingPage } from './pages/account/BillingPage'
+import { LimitsPage } from './pages/account/LimitsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { Spinner } from './components/ui/Spinner'
 
@@ -15,6 +17,8 @@ export function App() {
     >
       <Routes>
         <Route path="/" element={<DashboardPage />} />
+        <Route path="/account/billing" element={<BillingPage />} />
+        <Route path="/account/limits" element={<LimitsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
