@@ -119,6 +119,28 @@ def test_apply_unified_diff_invalid_hunk_without_full_marker(tmp_path):
     ]
 
 
+def test_apply_unified_diff_skips_empty_paths(tmp_path):
+    diff = """--- 
++++ 
+@@ -0,0 +1 @@
++ignored
+"""
+    results = list(apply_unified_diff(tmp_path, diff))
+    assert results == []
+
+
+def test_apply_unified_diff_skips_directory_targets(tmp_path):
+    target_dir = tmp_path / "nested"
+    target_dir.mkdir()
+    diff = """--- a/nested/
++++ b/nested/
+@@ -0,0 +1 @@
++content
+"""
+    results = list(apply_unified_diff(tmp_path, diff))
+    assert results == []
+
+
 def test_safe_write_strips_markers(tmp_path):
     path_with_marker = tmp_path / "HelloWorld.java::FULL"
     sanitized = safe_write(path_with_marker, "class HelloWorld {}\n")

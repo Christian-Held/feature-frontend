@@ -129,7 +129,7 @@ def apply_unified_diff(base_path: Path, diff_text: str) -> Iterable[Tuple[Path, 
             i += 1
 
         target_relative = header.new_path or header.old_path
-        if target_relative is None:
+        if target_relative is None or not target_relative.strip():
             logger.warning(
                 "diff_missing_target_path",
                 diff_event="apply_diff",
@@ -139,6 +139,14 @@ def apply_unified_diff(base_path: Path, diff_text: str) -> Iterable[Tuple[Path, 
             continue
 
         target_path = base_path / target_relative
+        if target_path.is_dir():
+            logger.warning(
+                "diff_target_is_directory",
+                diff_event="apply_diff",
+                file=str(target_relative),
+                path=str(target_path),
+            )
+            continue
         effective_mode = header.diff_mode
         fallback_reason: Optional[str] = header.reason
         fallback_lines: list[str] = []
@@ -165,14 +173,33 @@ def apply_unified_diff(base_path: Path, diff_text: str) -> Iterable[Tuple[Path, 
                 old_header=header.old_raw,
                 new_header=header.new_raw,
             )
+            if header.reason == "missing_+++_header":
+                logger.warning(
+                    "diff_missing_new_header",
+                    diff_event="apply_diff",
+                    file=str(target_relative),
+                    old_header=header.old_raw,
+                    new_header=header.new_raw,
+                )
 
-        if header.old_path is None:
+        if not header.old_path:
             original_content = ""
         else:
             source_path = base_path / header.old_path
-            original_content = (
-                source_path.read_text(encoding="utf-8") if source_path.exists() else ""
-            )
+            if source_path.is_dir():
+                logger.warning(
+                    "diff_source_is_directory",
+                    diff_event="apply_diff",
+                    file=str(header.old_path),
+                    path=str(source_path),
+                )
+                original_content = ""
+            else:
+                original_content = (
+                    source_path.read_text(encoding="utf-8")
+                    if source_path.exists()
+                    else ""
+                )
 
         source_lines = original_content.splitlines()
         rebuilt: list[str] = []
