@@ -30,9 +30,28 @@ def clone_or_update_repo(owner: str, repo_name: str, branch: str, *, force: bool
         repo = Repo.clone_from(url, target_path)
     try:
         repo.git.checkout(branch)
-    except GitCommandError:
-        repo.git.checkout("origin/" + branch)
-        repo.git.checkout('-b', branch)
+    except GitCommandError as exc:
+        remote = repo.remotes.origin
+        remote.fetch()
+        remote_branch = next(
+            (ref for ref in remote.refs if getattr(ref, "remote_head", None) == branch),
+            None,
+        )
+        if remote_branch is None:
+            available = sorted(
+                getattr(ref, "remote_head", str(ref)) for ref in remote.refs if getattr(ref, "remote_head", None)
+            )
+            logger.error(
+                "branch_not_found",
+                branch=branch,
+                available_branches=available,
+            )
+            raise ValueError(f"Branch '{branch}' not found in remote repository") from exc
+        try:
+            repo.git.checkout(remote_branch.name)
+            repo.git.checkout("-B", branch)
+        except GitCommandError as checkout_exc:
+            raise ValueError(f"Unable to checkout branch '{branch}'") from checkout_exc
     return target_path
 
 

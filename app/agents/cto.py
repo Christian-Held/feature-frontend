@@ -11,6 +11,15 @@ from .prompts import AgentsSpec, build_prompt
 logger = get_logger(__name__)
 
 
+def _strip_json_fence(text: str) -> str:
+    stripped = text.strip()
+    if stripped.startswith("```") and stripped.endswith("```"):
+        lines = stripped.splitlines()
+        if len(lines) >= 3 and lines[-1].startswith("```"):
+            return "\n".join(lines[1:-1]).strip()
+    return text
+
+
 class CTOAgent:
     def __init__(self, provider: BaseLLMProvider, spec: AgentsSpec, model: str, dry_run: bool = False):
         self.provider = provider
@@ -29,6 +38,7 @@ class CTOAgent:
         logger.info("cto_plan_request", model=self.model)
         response = await self.provider.generate(model=self.model, messages=messages)
         plan_text = response.text
+        plan_payload = _strip_json_fence(plan_text)
         if self.dry_run:
             logger.info("cto_plan_dry_run")
             return ([
@@ -41,7 +51,7 @@ class CTOAgent:
                 }
             ], response.tokens_in, response.tokens_out, plan_text)
         try:
-            plan = json.loads(plan_text)
+            plan = json.loads(plan_payload)
             if not isinstance(plan, list):
                 raise ValueError("Plan must be a list")
             return plan, response.tokens_in, response.tokens_out, plan_text
