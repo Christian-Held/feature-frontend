@@ -69,11 +69,18 @@ This document summarizes the target end-to-end architecture for the authenticati
 
 ### D. 2FA Setup & Recovery
 
-- `/2fa/setup` (authenticated) bootstraps TOTP.
-  - `POST /v1/auth/2fa/enable-init` returns secret (QR + manual code) and `challengeId`.
-  - `POST /v1/auth/2fa/enable-complete { challengeId, otp }` confirms setup, marks `mfa_enabled=true`, and issues 10 one-time recovery codes (display once for download).
-- Disabling requires password plus current OTP via `POST /v1/auth/2fa/disable`.
-- Recovery login uses `POST /v1/auth/recovery-login { email, recoveryCode }` and rotates remaining codes.
+POST /v1/auth/2fa/enable-init
+→ returns secret (QR + manual) + challengeId.
+
+POST /v1/auth/2fa/enable-complete { challengeId, otp }
+→ enables MFA; generate 10 recovery codes (display once).
+
+POST /v1/auth/2fa/disable { password, otp }
+→ disables MFA.
+
+POST /v1/auth/recovery-login { email, password, recoveryCode, challengeId? }
+→ validates password first, verifies recovery code (single use), rotates remaining codes,
+   and issues new access/refresh tokens.
 
 ### E. Forgot & Reset Password
 
