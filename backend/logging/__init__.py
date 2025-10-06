@@ -8,6 +8,7 @@ from typing import Iterable
 import structlog
 
 from backend.core.config import AppConfig
+from backend.middleware.request_context import get_admin_user_id, get_request_id
 
 
 class RedactingProcessor:
@@ -33,6 +34,7 @@ def configure_logging(settings: AppConfig) -> None:
         structlog.stdlib.add_log_level,
         timestamper,
         RedactingProcessor(settings.log_redact_fields),
+        _request_context_processor,
         structlog.processors.dict_tracebacks,
         structlog.processors.JSONRenderer(),
     ]
@@ -44,6 +46,16 @@ def configure_logging(settings: AppConfig) -> None:
     )
 
     logging.basicConfig(level=settings.log_level)
+
+
+def _request_context_processor(logger, method_name, event_dict):  # type: ignore[override]
+    request_id = get_request_id()
+    admin_user_id = get_admin_user_id()
+    if request_id and "request_id" not in event_dict:
+        event_dict["request_id"] = request_id
+    if admin_user_id and "admin_user_id" not in event_dict:
+        event_dict["admin_user_id"] = admin_user_id
+    return event_dict
 
 
 __all__ = ["configure_logging", "RedactingProcessor"]

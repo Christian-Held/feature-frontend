@@ -108,6 +108,66 @@ export interface AccountLimitsUpdateRequest {
   hard_stop: boolean;
 }
 
+export type AdminUserStatus = 'ACTIVE' | 'UNVERIFIED' | 'DISABLED';
+export type AdminRole = 'ADMIN' | 'USER' | 'BILLING_ADMIN' | 'SUPPORT';
+export type AdminUserSort = 'created_at_desc' | 'created_at_asc';
+
+export interface AdminUserSummary {
+  id: string;
+  email: string;
+  status: AdminUserStatus;
+  roles: AdminRole[];
+  created_at: string;
+  mfa_enabled: boolean;
+  email_verified: boolean;
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  page: number;
+  page_size: number;
+  total: number;
+}
+
+export interface AdminUsersQuery {
+  q?: string;
+  status?: AdminUserStatus;
+  role?: AdminRole;
+  page?: number;
+  page_size?: number;
+  sort?: AdminUserSort;
+}
+
+export interface AdminUserActionResponse {
+  user: AdminUserSummary;
+}
+
+export interface ResendVerificationActionResponse {
+  message: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  actor_user_id: string | null;
+  action: string;
+  target_type: string | null;
+  target_id: string | null;
+  ip: string | null;
+  user_agent: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface AuditLogQuery {
+  actor?: string;
+  action?: string;
+  target_type?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  page_size?: number;
+}
+
 interface RequestOptions extends RequestInit {
   skipAuth?: boolean;
 }
@@ -252,6 +312,82 @@ export class ApiClient {
     return this.requestWithMetadata<AccountLimitsResponse>('/v1/account/limits', {
       method: 'POST',
       body: JSON.stringify(body),
+    });
+  }
+
+  listAdminUsers(params: AdminUsersQuery = {}) {
+    const search = new URLSearchParams();
+    if (params.q) search.set('q', params.q);
+    if (params.status) search.set('status', params.status);
+    if (params.role) search.set('role', params.role);
+    if (params.page) search.set('page', String(params.page));
+    if (params.page_size) search.set('page_size', String(params.page_size));
+    if (params.sort) search.set('sort', params.sort);
+    const query = search.toString();
+    return this.request<PaginatedResponse<AdminUserSummary>>(
+      `/v1/admin/users${query ? `?${query}` : ''}`,
+    );
+  }
+
+  updateAdminUserRoles(userId: string, roles: AdminRole[]) {
+    return this.request<AdminUserSummary>(`/v1/admin/users/${encodeURIComponent(userId)}/roles`, {
+      method: 'POST',
+      body: JSON.stringify({ roles }),
+    });
+  }
+
+  lockAdminUser(userId: string) {
+    return this.request<AdminUserActionResponse>(`/v1/admin/users/${encodeURIComponent(userId)}/lock`, {
+      method: 'POST',
+    });
+  }
+
+  unlockAdminUser(userId: string) {
+    return this.request<AdminUserActionResponse>(`/v1/admin/users/${encodeURIComponent(userId)}/unlock`, {
+      method: 'POST',
+    });
+  }
+
+  resetAdminUserTwoFactor(userId: string) {
+    return this.request<AdminUserActionResponse>(`/v1/admin/users/${encodeURIComponent(userId)}/reset-2fa`, {
+      method: 'POST',
+    });
+  }
+
+  resendAdminVerification(userId: string) {
+    return this.request<ResendVerificationActionResponse>(
+      `/v1/admin/users/${encodeURIComponent(userId)}/resend-verification`,
+      {
+        method: 'POST',
+      },
+    );
+  }
+
+  listAuditLogs(params: AuditLogQuery = {}) {
+    const search = new URLSearchParams();
+    if (params.actor) search.set('actor', params.actor);
+    if (params.action) search.set('action', params.action);
+    if (params.target_type) search.set('target_type', params.target_type);
+    if (params.from) search.set('from', params.from);
+    if (params.to) search.set('to', params.to);
+    if (params.page) search.set('page', String(params.page));
+    if (params.page_size) search.set('page_size', String(params.page_size));
+    const query = search.toString();
+    return this.request<PaginatedResponse<AuditLogEntry>>(
+      `/v1/admin/audit-logs${query ? `?${query}` : ''}`,
+    );
+  }
+
+  exportAuditLogsCsv(params: AuditLogQuery = {}) {
+    const search = new URLSearchParams({ format: 'csv' });
+    if (params.actor) search.set('actor', params.actor);
+    if (params.action) search.set('action', params.action);
+    if (params.target_type) search.set('target_type', params.target_type);
+    if (params.from) search.set('from', params.from);
+    if (params.to) search.set('to', params.to);
+    const query = search.toString();
+    return this.requestRaw(`/v1/admin/audit-logs/export?${query}`, {
+      headers: { Accept: 'text/csv' },
     });
   }
 

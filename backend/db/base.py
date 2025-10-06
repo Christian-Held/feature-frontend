@@ -8,6 +8,8 @@ from datetime import datetime
 from sqlalchemy import DateTime, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, declared_attr, mapped_column
 
+from backend.db.types import GUID
+
 
 class Base(DeclarativeBase):
     """Declarative base class providing naming conventions."""
@@ -20,7 +22,7 @@ class Base(DeclarativeBase):
 class UUIDPrimaryKeyMixin:
     """Mixin providing a UUID primary key column."""
 
-    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=uuid.uuid4)
 
 
 class TimestampMixin:
