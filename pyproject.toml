@@ -17,6 +17,7 @@ dependencies = [
     "pydantic-settings>=2.4",
     "python-dotenv>=1.0",
     "python-multipart>=0.0.9",
+    "email-validator>=2.2",
     "redis>=5.0.4",
     "requests>=2.32",
     "sqlalchemy>=2.0.34",
