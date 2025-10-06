@@ -54,14 +54,15 @@ def _check_limits(job, *, now: datetime) -> None:
 
 def _apply_diff(repo_path: Path, diff_text: str) -> None:
     applied = list(apply_unified_diff(repo_path, diff_text))
+    sanitized_paths = []
     for file_path, content in applied:
-        safe_write(file_path, content)
+        sanitized_paths.append(str(safe_write(file_path, content)))
     if applied:
         logger.info(
             "diff_batch_applied",
             repo_path=str(repo_path),
             file_count=len(applied),
-            paths=[str(path) for path, _ in applied],
+            paths=sanitized_paths,
         )
 
 

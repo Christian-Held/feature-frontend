@@ -89,3 +89,38 @@ def test_apply_unified_diff_full_marker_invalid_hunk(tmp_path):
     for path, content in results:
         safe_write(path, content)
     assert file_path.read_text(encoding="utf-8") == "replacement line\n"
+
+
+def test_apply_unified_diff_missing_new_header(tmp_path):
+    original = "old line\n"
+    file_path = tmp_path / "sample.txt"
+    file_path.write_text(original, encoding="utf-8")
+    diff = """--- a/sample.txt
++new line
+"""
+    results = list(apply_unified_diff(tmp_path, diff))
+    assert results == [
+        (file_path, "new line\n"),
+    ]
+
+
+def test_apply_unified_diff_invalid_hunk_without_full_marker(tmp_path):
+    original = "line one\n"
+    file_path = tmp_path / "sample.txt"
+    file_path.write_text(original, encoding="utf-8")
+    diff = """--- a/sample.txt
++++ b/sample.txt
+@@ invalid header
++line two
+"""
+    results = list(apply_unified_diff(tmp_path, diff))
+    assert results == [
+        (file_path, "line two\n"),
+    ]
+
+
+def test_safe_write_strips_markers(tmp_path):
+    path_with_marker = tmp_path / "HelloWorld.java::FULL"
+    sanitized = safe_write(path_with_marker, "class HelloWorld {}\n")
+    assert sanitized == tmp_path / "HelloWorld.java"
+    assert sanitized.read_text(encoding="utf-8") == "class HelloWorld {}\n"
