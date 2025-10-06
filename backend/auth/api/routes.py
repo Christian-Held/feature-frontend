@@ -1,17 +1,43 @@
-"""FastAPI routes for registration and email verification flows."""
+"""FastAPI routes for authentication, sessions, and 2FA flows."""
 
 from __future__ import annotations
 
 import structlog
-from fastapi import APIRouter, Depends, Request, status
+import uuid
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
-from backend.auth.schemas.registration import (
+from backend.auth.schemas import (
+    LoginRequest,
+    LoginResponse,
+    LogoutResponse,
+    RecoveryLoginRequest,
+    RecoveryLoginResponse,
+    RefreshRequest,
+    RefreshResponse,
     RegistrationRequest,
     RegistrationResponse,
     ResendVerificationRequest,
     ResendVerificationResponse,
+    TwoFAEnableCompleteRequest,
+    TwoFAEnableCompleteResponse,
+    TwoFAEnableInitResponse,
+    TwoFADisableRequest,
+    TwoFADisableResponse,
+    TwoFAVerifyRequest,
+    TwoFAVerifyResponse,
+)
+from backend.auth.service.auth_service import (
+    complete_two_factor,
+    disable_two_factor,
+    init_two_factor,
+    login_user,
+    logout_session,
+    recovery_login,
+    refresh_tokens,
+    verify_two_factor,
 )
 from backend.auth.service.registration_service import (
     complete_email_verification,
@@ -19,12 +45,15 @@ from backend.auth.service.registration_service import (
     resend_verification,
 )
 from backend.core.config import AppConfig, get_settings
+from backend.db.models.user import User, UserStatus
 from backend.db.session import get_db
 from backend.redis.client import get_redis_client
+from backend.security.jwt_service import get_jwt_service
 
 logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/v1/auth", tags=["auth"])
+http_bearer = HTTPBearer(auto_error=False)
 
 
 def _client_ip(request: Request) -> str | None:
@@ -34,6 +63,37 @@ def _client_ip(request: Request) -> str | None:
     if request.client and request.client.host:
         return request.client.host
     return None
+
+
+def _user_agent(request: Request) -> str | None:
+    return request.headers.get("user-agent")
+
+
+async def _require_current_user(request: Request, session: Session) -> User:
+    credentials: HTTPAuthorizationCredentials | None = await http_bearer(request)
+    if credentials is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="You don’t have permission to perform this action.")
+
+    token = credentials.credentials
+    jwt_service = get_jwt_service()
+    try:
+        payload = jwt_service.decode(token)
+    except Exception as exc:  # pragma: no cover - invalid token paths
+        logger.info("api.auth.invalid_token", error=str(exc))
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="You don’t have permission to perform this action.") from exc
+
+    if payload.get("type") != "access":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="You don’t have permission to perform this action.")
+
+    try:
+        user_id = uuid.UUID(str(payload.get("sub")))
+    except Exception as exc:  # pragma: no cover - malformed sub
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="You don’t have permission to perform this action.") from exc
+
+    user = session.get(User, user_id)
+    if not user or user.status != UserStatus.ACTIVE:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You don’t have permission to perform this action.")
+    return user
 
 
 @router.post("/register", response_model=RegistrationResponse)
@@ -83,6 +143,137 @@ async def verify_email_endpoint(
     redirect_url = f"{settings.frontend_base_url}/login?verified=1"
     logger.info("api.verify.redirect", redirect_url=redirect_url)
     return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/login", response_model=LoginResponse)
+async def login_endpoint(
+    payload: LoginRequest,
+    request: Request,
+    session: Session = Depends(get_db),
+    settings: AppConfig = Depends(get_settings),
+):
+    redis = get_redis_client()
+    response = await login_user(
+        db=session,
+        settings=settings,
+        request=payload,
+        redis=redis,
+        user_agent=_user_agent(request),
+        ip_address=_client_ip(request),
+    )
+    logger.info("api.login.completed", email=payload.email, requires_2fa=response.requires_2fa)
+    return response
+
+
+@router.post("/2fa/verify", response_model=TwoFAVerifyResponse)
+async def verify_two_factor_endpoint(
+    payload: TwoFAVerifyRequest,
+    request: Request,
+    session: Session = Depends(get_db),
+    settings: AppConfig = Depends(get_settings),
+):
+    redis = get_redis_client()
+    response = await verify_two_factor(
+        db=session,
+        settings=settings,
+        request=payload,
+        redis=redis,
+        user_agent=_user_agent(request),
+        ip_address=_client_ip(request),
+    )
+    logger.info("api.2fa.verified", challenge_id=payload.challenge_id)
+    return response
+
+
+@router.post("/refresh", response_model=RefreshResponse)
+async def refresh_endpoint(
+    payload: RefreshRequest,
+    request: Request,
+    session: Session = Depends(get_db),
+    settings: AppConfig = Depends(get_settings),
+):
+    response = await refresh_tokens(
+        db=session,
+        settings=settings,
+        request=payload,
+        redis=get_redis_client(),
+        user_agent=_user_agent(request),
+        ip_address=_client_ip(request),
+    )
+    logger.info("api.refresh.rotated")
+    return response
+
+
+@router.post("/logout", response_model=LogoutResponse)
+async def logout_endpoint(
+    payload: RefreshRequest,
+    request: Request,
+    session: Session = Depends(get_db),
+):
+    response = await logout_session(
+        db=session,
+        token=payload.refresh_token,
+        user_agent=_user_agent(request),
+        ip_address=_client_ip(request),
+    )
+    logger.info("api.logout.completed")
+    return response
+
+
+@router.post("/2fa/enable-init", response_model=TwoFAEnableInitResponse)
+async def enable_two_factor_init_endpoint(
+    request: Request,
+    session: Session = Depends(get_db),
+    settings: AppConfig = Depends(get_settings),
+):
+    user = await _require_current_user(request, session)
+    response = await init_two_factor(db=session, settings=settings, user=user, redis=get_redis_client())
+    logger.info("api.2fa.enable_init", user_id=str(user.id))
+    return response
+
+
+@router.post("/2fa/enable-complete", response_model=TwoFAEnableCompleteResponse)
+async def enable_two_factor_complete_endpoint(
+    payload: TwoFAEnableCompleteRequest,
+    request: Request,
+    session: Session = Depends(get_db),
+):
+    user = await _require_current_user(request, session)
+    response = await complete_two_factor(db=session, request=payload, user=user, redis=get_redis_client())
+    logger.info("api.2fa.enabled", user_id=str(user.id))
+    return response
+
+
+@router.post("/2fa/disable", response_model=TwoFADisableResponse)
+async def disable_two_factor_endpoint(
+    payload: TwoFADisableRequest,
+    request: Request,
+    session: Session = Depends(get_db),
+):
+    user = await _require_current_user(request, session)
+    response = await disable_two_factor(db=session, user=user, request=payload)
+    logger.info("api.2fa.disabled", user_id=str(user.id))
+    return response
+
+
+@router.post("/recovery-login", response_model=RecoveryLoginResponse)
+async def recovery_login_endpoint(
+    payload: RecoveryLoginRequest,
+    request: Request,
+    session: Session = Depends(get_db),
+    settings: AppConfig = Depends(get_settings),
+):
+    redis = get_redis_client()
+    response = await recovery_login(
+        db=session,
+        settings=settings,
+        request=payload,
+        redis=redis,
+        user_agent=_user_agent(request),
+        ip_address=_client_ip(request),
+    )
+    logger.info("api.recovery_login.completed", email=payload.email)
+    return response
 
 
 __all__ = ["router"]
