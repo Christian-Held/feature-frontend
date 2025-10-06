@@ -3,23 +3,36 @@
 Auto Dev Orchestrator ist ein FastAPI- und Celery-basiertes Grundgerüst, das automatisierte Softwarelieferung orchestriert. Das System liest zur Laufzeit **AGENTS.md**, um CTO- und Coder-Agenten anzuleiten, überwacht Budget- und Request-Limits und erstellt Pull Requests mit GitHub-Integration.
 
 ## Features
-- FastAPI REST-API (`/tasks`, `/jobs/{id}`, `/jobs/{id}/cancel`, `/health`).
-- Celery Worker mit Redis-Broker für die schrittweise Ausführung (`plan → code → verify → pr`).
-- SQLite-Datenbank (SQLAlchemy) zur Nachverfolgung von Jobs, Steps und Kosten.
-- Strukturierte JSON-Logs über structlog.
-- LLM-Provider-Abstraktion (OpenAI, Ollama optional) mit Kosten-Tracking.
-- GitHub-Integration über PyGithub und GitPython.
+- **Backend (FastAPI + Celery)**:
+  - REST-API (`/api/env`, `/api/models`, `/tasks`, `/jobs/{id}`, `/jobs/{id}/cancel`, `/health`).
+  - Celery Worker mit Redis-Broker für die schrittweise Ausführung (`plan → code → verify → pr`).
+  - SQLite-Datenbank (SQLAlchemy) zur Nachverfolgung von Jobs, Steps und Kosten.
+  - Strukturierte JSON-Logs über structlog.
+  - LLM-Provider-Abstraktion (OpenAI, Ollama optional) mit Kosten-Tracking.
+  - GitHub-Integration über PyGithub und GitPython.
+  - Settings-API für Environment Variables und Model-Konfiguration.
+- **Frontend (React + TypeScript + Vite)**:
+  - Dashboard mit Live-Updates über WebSocket.
+  - Settings-Seite für Environment Variables und Model-Auswahl.
+  - File Browser für Repo-Artefakte.
+  - Tailwind CSS Dark-Theme.
 - Windows-freundliche PowerShell-Skripte (`scripts/`).
 - Tests mit pytest (Unit & E2E-Dry-Run).
 
 ## Voraussetzungen
-- Windows 11 oder Linux mit laufendem Docker (Docker Desktop bzw. Docker Engine).
-- Python 3.12 oder 3.13 wird empfohlen. 3.11 und 3.14 funktionieren im Best-Effort-Modus.
-- [uv](https://docs.astral.sh/uv/) (wird bei Bedarf automatisch über den aktiven Interpreter installiert).
-- Windows: PowerShell 7+ (`pwsh`).
-- Linux: Bash 4+.
+- **Backend**:
+  - Windows 11 oder Linux mit laufendem Docker (Docker Desktop bzw. Docker Engine).
+  - Python 3.12 oder 3.13 wird empfohlen. 3.11 und 3.14 funktionieren im Best-Effort-Modus.
+  - [uv](https://docs.astral.sh/uv/) (wird bei Bedarf automatisch über den aktiven Interpreter installiert).
+  - Windows: PowerShell 7+ (`pwsh`).
+  - Linux: Bash 4+.
+- **Frontend**:
+  - Node.js 20+
+  - npm 10+
 
 ## Quickstart
+
+### Backend Setup
 1. Kopiere `.env.example` zu `.env` und fülle die benötigten Schlüssel (`OPENAI_API_KEY`, `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO`, `REDIS_URL`, `DB_PATH`, Limits usw.).
 2. Führe das Setup-Skript für deine Plattform aus:
    - **Windows (PowerShell 7+)**: `pwsh -File scripts/setup.ps1`
@@ -29,8 +42,27 @@ Auto Dev Orchestrator ist ein FastAPI- und Celery-basiertes Grundgerüst, das au
    - **Windows**: `pwsh -File scripts/run.ps1`
    - **Linux**: `./scripts/run.sh`
    Die Skripte laden `.env`, protokollieren den ausgewählten Interpreter und starten `uv run uvicorn app.main:app` sowie `uv run celery -A app.workers.celery_app worker -l info`.
-4. Öffne für die Weboberfläche ein neues Terminal und starte `uv run python -m webui.app_gradio`. Die UI läuft unabhängig vom Backend und nutzt dieselben REST-Endpunkte.
-5. Optional kannst du nach erfolgreichem Health-Check die Demo-Seed-Skripte verwenden:
+
+   **Alternativ (für Development)**: Starte nur den FastAPI-Server auf Port 3000:
+   ```bash
+   source .venv/bin/activate
+   uvicorn app.main:app --host 0.0.0.0 --port 3000 --reload
+   ```
+
+### Frontend Setup (React Dashboard)
+4. Installiere und starte die React-Frontend-Anwendung:
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+   Die Vite Dev-Server läuft auf `http://localhost:5173` und proxied automatisch API-Requests an den Backend-Server auf Port 3000.
+
+### Alternative Weboberfläche (Gradio)
+5. Öffne für die Gradio-Weboberfläche ein neues Terminal und starte `uv run python -m webui.app_gradio`. Die UI läuft unabhängig vom Backend und nutzt dieselben REST-Endpunkte.
+
+### Optional: Demo-Seed
+6. Optional kannst du nach erfolgreichem Health-Check die Demo-Seed-Skripte verwenden:
    - **Windows**: `pwsh -File scripts/seed-demo.ps1`
    - **Linux**: `./scripts/seed-demo.sh`
    Sie warten auf `/health`, legen einen Demo-Task an und verfolgen den Job inkl. Kosten und PR-Links.

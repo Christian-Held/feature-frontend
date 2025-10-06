@@ -157,7 +157,7 @@ def update_env_variable(key: str, payload: EnvUpdateRequest) -> EnvVariable:
 def list_model_configs() -> List[ModelConfig]:
     pricing = get_pricing_table()
     current = _get_current_env()
-    variants = [ModelVariant(id=model_id, label=model_id) for model_id in pricing.keys()]
+    variants = [ModelVariant(id=model_id, label=model_id) for model_id in pricing.data.keys()]
     configs: List[ModelConfig] = []
     for model_id, meta in _MODEL_DEFINITIONS.items():
         env_key = meta["env_key"]
@@ -190,7 +190,7 @@ def update_model_config(model_id: str, payload: ModelUpdateRequest) -> ModelConf
     current = _get_current_env()
     logger.info("model_configuration_updated", model_id=model_id, selected=payload.selectedVariant)
     pricing = get_pricing_table()
-    variants = [ModelVariant(id=model_name, label=model_name) for model_name in pricing.keys()]
+    variants = [ModelVariant(id=model_name, label=model_name) for model_name in pricing.data.keys()]
     return ModelConfig(
         id=model_id,
         name=definition["name"],

@@ -14,8 +14,8 @@ logger = get_logger(__name__)
 
 
 def create_application() -> FastAPI:
-    settings = get_settings()
-    configure_logging(settings.log_level)
+    app_settings = get_settings()
+    configure_logging(app_settings.log_level)
     app = FastAPI(title="Auto Dev Orchestrator", version="0.1.0")
 
     @app.on_event("startup")

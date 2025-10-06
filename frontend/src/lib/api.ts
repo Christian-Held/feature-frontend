@@ -92,7 +92,7 @@ interface RequestOptions extends RequestInit {
 export class ApiClient {
   private readonly baseUrl: string
 
-  constructor(baseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000') {
+  constructor(baseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5173') {
     this.baseUrl = baseUrl.replace(/\/$/, '')
   }
 
