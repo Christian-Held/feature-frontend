@@ -1,0 +1,16 @@
+task:
+  name: "AUTH Registration & Verification"
+  repo_path: "feature-auth/tasks_bootstrap"
+  goal: |
+    Deliver the registration and email verification experience outlined in the architecture. Build the `/v1/auth/register`,
+    resend, and verification endpoints with CAPTCHA enforcement, unverified account handling, and templated transactional
+    emails via Celery. Create the frontend registration and verification screens, exact error messaging, and resend flows
+    so new users can activate their accounts end-to-end.
+  context:
+    spec_file: "docs/architecture/AUTH_PLATFORM.md"
+  outputs:
+    - backend/
+    - frontend/
+    - alembic/
+    - tests/
+  tests: true

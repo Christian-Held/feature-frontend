@@ -1,0 +1,15 @@
+task:
+  name: "AUTH Testing & QA Automation"
+  repo_path: "feature-auth/tasks_bootstrap"
+  goal: |
+    Establish the comprehensive testing strategy from the architecture. Create unit, integration, end-to-end, load, and chaos
+    test suites covering registration, login, 2FA, plans, admin, and compliance flows. Automate execution in CI with fixtures
+    for Redis, email, CAPTCHA, and messaging dependencies to ensure ongoing quality gates for the auth platform.
+  context:
+    spec_file: "docs/architecture/AUTH_PLATFORM.md"
+  outputs:
+    - backend/
+    - frontend/
+    - tests/
+    - ci/
+  tests: true

@@ -1,0 +1,15 @@
+task:
+  name: "AUTH Admin, RBAC & Auditing"
+  repo_path: "feature-auth/tasks_bootstrap"
+  goal: |
+    Implement the admin-facing controls, RBAC model, and audit visibility defined in the architecture. Deliver role and
+    permission management, admin seeding, user lock/unlock, 2FA resets, and audit log APIs along with secure admin UI panels
+    for user management, plan overrides, resend operations, and audit log viewing with proper authorization responses.
+  context:
+    spec_file: "docs/architecture/AUTH_PLATFORM.md"
+  outputs:
+    - backend/
+    - frontend/
+    - alembic/
+    - tests/
+  tests: true
