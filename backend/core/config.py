@@ -30,7 +30,7 @@ class AppConfig(BaseSettings):
     jwt_active_kid: str = Field(validation_alias="JWT_ACTIVE_KID")
     jwt_private_keys_dir: Path = Field(validation_alias="JWT_PRIVATE_KEYS_DIR")
     jwt_public_keys_dir: Path | None = Field(default=None, validation_alias="JWT_PUBLIC_KEYS_DIR")
-    jwt_access_ttl_seconds: int = Field(default=600, validation_alias="JWT_ACCESS_TTL_SECONDS")
+    jwt_access_ttl_seconds: int = Field(default=420, validation_alias="JWT_ACCESS_TTL_SECONDS")
     jwt_refresh_ttl_seconds: int = Field(default=30 * 24 * 3600, validation_alias="JWT_REFRESH_TTL_SECONDS")
     jwt_issuer: str = Field(default="feature-auth", validation_alias="JWT_ISSUER")
     jwt_audience: str = Field(default="feature-auth-clients", validation_alias="JWT_AUDIENCE")

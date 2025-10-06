@@ -11,7 +11,7 @@ from fakeredis import aioredis
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
-from backend.auth.schemas.registration import (
+from backend.auth.schemas import (
     RegistrationRequest,
     ResendVerificationRequest,
 )

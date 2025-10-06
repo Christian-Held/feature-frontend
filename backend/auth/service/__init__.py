@@ -1,11 +1,7 @@
 """Service layer exports for auth flows."""
 
-from .registration_service import (
-    complete_email_verification,
-    register_user,
-    resend_verification,
-    validate_email_verification_token,
-)
+from importlib import import_module
+from typing import Any
 
 __all__ = [
     "register_user",
@@ -13,3 +9,11 @@ __all__ = [
     "complete_email_verification",
     "validate_email_verification_token",
 ]
+
+
+def __getattr__(name: str) -> Any:
+    if name in __all__:
+        module = import_module("backend.auth.service.registration_service")
+        return getattr(module, name)
+    raise AttributeError(name)
+

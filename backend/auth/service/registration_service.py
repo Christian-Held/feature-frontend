@@ -14,7 +14,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from backend.auth.email.tasks import enqueue_verification_email
-from backend.auth.schemas.registration import RegistrationRequest, ResendVerificationRequest
+from backend.auth.schemas import RegistrationRequest, ResendVerificationRequest
 from backend.auth.service.captcha import verify_turnstile
 from backend.auth.service.rate_limit import enforce_rate_limit
 from backend.core.config import AppConfig
