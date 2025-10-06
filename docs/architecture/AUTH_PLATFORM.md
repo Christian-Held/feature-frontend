@@ -1,185 +1,451 @@
-# Authentication & Account Platform Architecture
+# Authentication & Account Platform — Final Enterprise Design
 
-This document summarizes the target end-to-end architecture for the authentication, authorization, and account experience. It captures backend service boundaries, frontend flows, data structures, and operational guardrails required to deliver the experience.
+Dieses Dokument ist **die einzige maßgebliche Spezifikation**. Keine Alternativen, keine „optional“-Pfade. Implementiere exakt so.
 
-## 1. High-Level Architecture
+---
 
-- **Frontend (React)**
-  - Public routes: `/login`, `/register`, `/verify-email`, `/forgot-password`, `/reset-password`, `/2fa/setup`, `/2fa/verify`.
-  - Authenticated routes: dashboard plus account pages (`/account/security`, `/account/billing`, `/account/limits`).
-  - Shared auth SDK responsible for backend calls, token refresh, and handling `401/403` responses.
-  - CAPTCHA widget (Turnstile or hCaptcha) required on registration and shown adaptively on login.
-- **Backend/API** (microservice-friendly; Spring Boot preferred, FastAPI acceptable when mirroring boundaries)
-  - Identity Service (users, credentials, email verification, password reset).
-  - Auth Service (sessions, JWTs, refresh rotation, 2FA/TOTP/WebAuthn).
-  - Notification Service (email now, SMS/Push later).
-  - Admin / IAM Service (roles, permissions, policy enforcement).
-  - Billing/Plans Service (free/pro tiers, quotas/limits).
-- **Edge/API Gateway** providing rate limiting, CORS, request signing, and WAF policies.
-- **Supporting infrastructure**
-  - Message broker (RabbitMQ or Redis Streams) for async email delivery and audit log fan-out.
-  - Cache (Redis) storing nonces, short-lived state, CAPTCHA receipts, and login throttles.
-- **Data storage**
-  - PostgreSQL primary relational store; S3/Blob storage for audit exports and backups.
-  - Database migrations managed through Liquibase or Flyway.
-- **Security posture**
-  - Password hashing via Argon2id.
-  - JWT access tokens (5–10 minute TTL) plus rotating refresh tokens (30-day TTL, revocable).
-  - TOTP (RFC 6238) with recovery codes; WebAuthn is optional for future expansion.
-  - CAPTCHA server-side verification, device/session management, IP reputation, and adaptive challenges.
-  - Comprehensive audit logging across the stack.
+## 0. Ziele und Nicht-Ziele
 
-## 2. Core User Flows
+**Ziele**
 
-### A. Registration
+* Sichere Benutzer-Identität, Sessions, RBAC, Pläne/Limits, Admin.
+* Deterministischer Codepfad für Auto-Dev-Orchestrator.
+* Enterprise-fähig: Security, Compliance, Observability, Resilienz, Skalierung.
 
-1. User opens `/register` with fields for email, password, optional name, and CAPTCHA.
-2. Frontend validates input, collects CAPTCHA token, and calls `POST /v1/auth/register { email, password, captchaToken }`.
-3. Backend actions:
-   - Verify CAPTCHA receipt.
-   - If email exists and is verified → `409 Email already registered`.
-   - If email exists but is unverified:
-     - If a previous verification exists within 24h → resend link and return 200 with message: “Registrierung fast abgeschlossen — bitte bestätige deine E-Mail. Der Link ist 24 Stunden gültig.”
-     - If ≥24h expired → purge old token and issue a new one.
-   - Create user with `status=UNVERIFIED`, hash password (Argon2id), generate verification token (24h TTL, single-use), enqueue email.
-4. Email content:
-   - Subject “Bitte bestätige deine E-Mail”.
-   - Body includes `GET /v1/auth/verify-email?token=…` and the statement “Dieser Link ist 24 Stunden gültig. Danach verfällt die Registrierung automatisch.”
-5. Login attempt prior to verification returns `403` with message: “Du musst die Registrierung erst noch bestätigen. Wir haben dir eine E-Mail geschickt.”
-6. Provide `POST /v1/auth/resend-verification` with rate-limit (e.g., 3/day).
+**Nicht-Ziele**
 
-### B. Email Verification
+* Kein SSO/OIDC/SAML, keine Passkeys in v1.
+* Keine Multi-DB, kein anderes CAPTCHA, kein anderer Stack.
 
-- `GET /v1/auth/verify-email?token=…` validates signature, TTL, and usage.
-- Expired tokens mark the attempt as expired, keep account `UNVERIFIED`, and free the email for a new registration.
-- Successful verification sets `email_verified_at`, `status=ACTIVE`, consumes the token, and redirects frontend to `/login?verified=1`.
+---
 
-### C. Login with CAPTCHA + 2FA
+## 1. Architekturübersicht
 
-1. User submits email and password on `/login`; CAPTCHA displayed adaptively after failed attempts, risky IPs, or velocity triggers.
-2. `POST /v1/auth/login` validates credentials and CAPTCHA requirements.
-   - Missing verification → `403` with “Du musst die Registrierung erst noch bestätigen. Wir haben dir eine E-Mail geschickt.”
-   - CAPTCHA missing/invalid when required → `400` “Captcha erforderlich.”
-   - Incorrect password → “Benutzername oder Passwort ist falsch.”
-   - Account lock after repeated failures → “Konto vorübergehend gesperrt. Bitte versuche es in einigen Minuten erneut.”
-3. Successful password authentication without 2FA issues short-lived access token and rotating refresh token.
-4. For TOTP-enabled accounts `requires_2fa=true` is returned; frontend routes to `/2fa/verify` and calls `POST /v1/auth/2fa/verify` with OTP and optional device name.
-5. Five incorrect OTP attempts trigger a temporary lock (≈5 minutes) and force CAPTCHA on the next attempt.
-6. OTP validation errors return “Der eingegebene Sicherheitscode ist ungültig.”
+**Stack**
 
-### D. 2FA Setup & Recovery
+* Backend: FastAPI (Python 3.11), Celery, Redis, SQLAlchemy, structlog
+* Frontend: React + TypeScript + Vite + Tailwind
+* Datenbank: PostgreSQL 15+ (Prod), SQLite nur lokale Dev
+* Migrations: Alembic
+* Tracing/Metrics: OpenTelemetry, Prometheus
+* Logs: structlog (JSON)
+* CAPTCHA: Cloudflare Turnstile
+* E-Mail: SMTP/SES/SendGrid via Celery
 
-- `/2fa/setup` (authenticated) bootstraps TOTP.
-  - `POST /v1/auth/2fa/enable-init` returns secret (QR + manual code) and `challengeId`.
-  - `POST /v1/auth/2fa/enable-complete { challengeId, otp }` confirms setup, marks `mfa_enabled=true`, and issues 10 one-time recovery codes (display once for download).
-- Disabling requires password plus current OTP via `POST /v1/auth/2fa/disable`.
-- Recovery login uses `POST /v1/auth/recovery-login { email, recoveryCode }` and rotates remaining codes.
+**Services im FastAPI-Monolith**
 
-### E. Forgot & Reset Password
+* Identity: User, Credentials, E-Mail-Verifikation, Password Reset
+* Auth: Login, JWT Access/Refresh Rotation, Sessions, TOTP
+* IAM/RBAC: Rollen, Berechtigungen, Admin-Endpunkte
+* Plans/Limits: Free/Pro, Monatsbudget, Hard-Stop
+* Notifications: E-Mail-Versand, Vorlagen
 
-- `POST /v1/auth/forgot-password { email }` sends reset link with 1h TTL.
-- `POST /v1/auth/reset-password { token, newPassword }` performs reset; unverified accounts can reset but must verify email before login.
+**Infra**
 
-### F. Plans, Quotas, and Limits
+* Redis: Celery-Broker + Cache (Throttles, Nonces, CAPTCHA-Receipts)
+* Object Storage (S3-kompatibel): Backups, optionale Audit-Exports
+* Reverse Proxy/TLS: Caddy/Traefik oder NGINX (TLS 1.2/1.3, HSTS)
 
-- `/account/billing` and `/account/limits` provide plan management (Free/Pro), spend cap per month (USD), forecast usage, and “hard stop” toggle.
-- Admin defines defaults and hard caps; reaching the cap surfaces: “Dein monatliches Ausgabenlimit wurde erreicht. Passe dein Limit an, um fortzufahren.”
+**Frontend Routen**
 
-### G. Admin & Roles (RBAC)
+* Public: `/login`, `/register`, `/verify-email`, `/forgot-password`, `/reset-password`, `/2fa/setup`, `/2fa/verify`
+* Authenticated: Dashboard, `/account/security`, `/account/billing`, `/account/limits`, `/admin/*`
 
-- Initial admin seeded on first migration (env-driven).
-- Roles: `ADMIN`, `USER`, optional `BILLING_ADMIN`, `SUPPORT` mapped to granular permissions.
-- Admin UI covers user management (invite, deactivate, reset 2FA, role assignment), plan overrides, audit viewer, email resend, lock/unlock.
-- Unauthorized response message: “Keine Berechtigung für diese Aktion.”
+---
 
-## 3. Data Model (PostgreSQL)
+## 2. Sicherheits-Grundsätze
 
-| Table | Key Columns & Notes |
-| --- | --- |
-| `users` | `id (uuid)`, `email` (lowercased unique; nullable until verified strategy), `email_verified_at`, `status` (`ACTIVE|UNVERIFIED|DISABLED`), `password_hash`, `mfa_enabled`, `mfa_secret` (encrypted), `recovery_codes` (encrypted JSON), timestamps (`created_at`, `updated_at`), `last_login_at`, `last_ip`. |
-| `email_verifications` | `id`, `user_id`, `token_hash`, `expires_at`, `used_at`, `created_at`. |
-| `password_resets` | `id`, `user_id`, `token_hash`, `expires_at`, `used_at`. |
-| `roles` / `user_roles` | Role definitions and assignments. |
-| `permissions` / `role_permissions` | Granular permission model mapped to roles. |
-| `plans` / `user_plans` | Plan catalog and per-user subscription state (`renews_at`, `status`). |
-| `spend_limits` | `user_id`, `monthly_cap_usd`, `hard_stop (bool)`. |
-| `sessions` | `id`, `user_id`, `refresh_token_hash`, `expires_at`, `rotated_at`, `ua`, `ip`, `revoked_at`. |
-| `audit_logs` | `id`, `actor_user_id`, `action`, `target_type`, `target_id`, `ip`, `ua`, `metadata JSON`, `created_at`. |
-| `captcha_receipts` (cache preferred) | Optional persistent records for compliance. |
-| `login_attempts` (or Redis keys) | Supports throttling, adaptive challenges, and lockouts. |
+* Passwort-Hash: **Argon2id** mit Params: `time_cost=3`, `memory_cost=64*1024 KB`, `parallelism=2`, `hash_len=32`, `salt_len=16`
+* JWT: ES256 (P-256). Access TTL **7 min**. Refresh TTL **30 Tage**. **Rotation auf jede Nutzung**. JWKs mit `kid`, Key-Roll alle **90 Tage**.
+* TOTP (RFC 6238) 30s Intervall, 6 Stellen, Drift ±1. Admins **müssen** TOTP aktivieren.
+* Rate Limits (Redis):
 
-## 4. API Surface
+  * Register: 5/Std/IP
+  * Login: 10/15min/IP + 5/15min/Account
+  * Resend Verification: 3/Tag/Account
+  * Forgot Password: 3/Std/Account
+  * 2FA Verify: 10/15min/Account
+* Adaptive CAPTCHA bei Risiko oder nach Fehlschlägen.
+* Session Fixation Prevention, Refresh an UA und /24-IP binden.
+* CSRF-Schutz nur bei Cookie-Modus. Standard: Bearer im `Authorization`.
+* Secrets niemals loggen. Selektive Redaction in structlog.
 
-### Auth Endpoints
+---
 
-- `POST /v1/auth/register`
-- `POST /v1/auth/resend-verification`
-- `GET /v1/auth/verify-email?token=…`
-- `POST /v1/auth/login`
-- `POST /v1/auth/2fa/verify`
-- `POST /v1/auth/logout`
-- `POST /v1/auth/refresh` (rotate + revoke previous refresh token)
-- `POST /v1/auth/forgot-password`
-- `POST /v1/auth/reset-password`
-- `GET /v1/auth/me` (profile, roles, plan, limits)
+## 3. Datenmodell (PostgreSQL)
 
-### 2FA Endpoints
+**users**
 
-- `POST /v1/auth/2fa/enable-init`
-- `POST /v1/auth/2fa/enable-complete`
-- `POST /v1/auth/2fa/disable`
-- `POST /v1/auth/recovery-login`
+* `id UUID PK`
+* `email CITEXT UNIQUE NOT NULL`
+* `password_hash TEXT NOT NULL`
+* `status ENUM('UNVERIFIED','ACTIVE','DISABLED') NOT NULL`
+* `email_verified_at TIMESTAMPTZ NULL`
+* `mfa_enabled BOOL NOT NULL DEFAULT false`
+* `mfa_secret BYTEA NULL` (verschlüsselt)
+* `recovery_codes BYTEA NULL` (verschlüsselt JSON)
+* `last_login_at TIMESTAMPTZ NULL`, `last_ip INET NULL`
+* `created_at`, `updated_at` (TIMESTAMPTZ, default now)
 
-### Plans & Limits
+**email_verifications**
 
-- `GET /v1/account/plan`, `POST /v1/account/plan`
-- `GET /v1/account/limits`, `POST /v1/account/limits`
+* `id UUID PK`, `user_id UUID FK`
+* `token_hash BYTEA NOT NULL`
+* `expires_at TIMESTAMPTZ NOT NULL`, `used_at TIMESTAMPTZ NULL`
+* `created_at TIMESTAMPTZ NOT NULL`
 
-### Admin
+**password_resets**
 
-- `GET /v1/admin/users`, `POST /v1/admin/users/:id/roles`
-- `POST /v1/admin/users/:id/lock` | `unlock`
-- `POST /v1/admin/users/:id/reset-2fa`
-- `GET /v1/admin/audit-logs`
+* `id UUID PK`, `user_id UUID FK`
+* `token_hash BYTEA NOT NULL`
+* `expires_at TIMESTAMPTZ NOT NULL`, `used_at TIMESTAMPTZ NULL`
 
-_All write endpoints require CSRF protection (for cookie-based auth) and RBAC enforcement._
+**roles**, **user_roles**
 
-## 5. Frontend Application Requirements
+* Rollen: `ADMIN`, `USER`, optional intern `BILLING_ADMIN`, `SUPPORT`
+* `user_roles(user_id, role_id)` UNIQUE
 
-- Maintain existing layout and styling while adding screens for login, registration, verification outcomes, 2FA setup/verify, account security, billing/plan selection, and usage limits.
-- Implement password strength meter on registration and exact error texts as specified.
-- Surface resend verification link from login when backend responds with the unverified message.
-- Provide QR and manual code during 2FA setup and present recovery codes once for download.
-- Account security page includes password change, 2FA enable/disable, session/device list, and “sign out others”.
-- Billing/plan page presents plan comparison, spend cap input, usage forecast, and hard-stop toggle.
-- Global auth store manages access/refresh tokens, automatic refresh on `401`, retries once, then logs out.
-- Show “email not verified” banner if a user somehow bypasses verification enforcement.
+**permissions**, **role_permissions**
 
-## 6. Security & Compliance Controls
+* V1 rudimentär. Mapping hinterlegt, API strikt auf Rollen.
 
-- Argon2id hashing with strong parameters; consider pepper from HSM/KMS.
-- JWTs signed using JWS (ES256/RS256) with `kid` rotation, short access token TTL (5–10 minutes), refresh tokens (~30 days) rotated on use and revocable on logout.
-- Prevent session fixation; optionally bind refresh tokens to IP/UA.
-- Verify CAPTCHA server-side, storing minimal receipts for audit without PII.
-- Enforce rate limits on registration, login, resend, and forgot-password flows.
-- Progressive lockouts (e.g., 5/15/60 minutes) with email notifications for lock events and new device logins.
-- Audit logging for auth events, admin actions, plan changes; redact secrets and sensitive values.
-- Support GDPR workflows: email erasure, data export, marketing consent tracking.
-- Manage secrets via Vault/KMS, configure via environment variables, and avoid logging secrets.
-- Apply CSP, HSTS, and SameSite cookies (if cookies are used).
-- Verification tokens must expire after 24h; on expiry, allow re-registration and free the email address.
+**plans**, **user_plans**
 
-## 7. Operations, Observability & SRE
+* Plan: `FREE`, `PRO`
+* `renews_at TIMESTAMPTZ`, `status ENUM('ACTIVE','CANCELLED','PAST_DUE')`
 
-- **Metrics (Prometheus):** login success/failure, 2FA adoption, resend counts, lockouts, email delivery latencies, token refresh rates.
-- **Tracing (OpenTelemetry):** propagate spans across gateway → services → SMTP.
-- **Alerts:** spikes in `401/403`, high email bounce rates, CAPTCHA failures, token refresh anomalies.
-- **Runbooks:** address email outages (queue & replay), CAPTCHA outages (grace users with tighter rate limits).
-- **Feature flags:** staged rollout (register CAPTCHA, login CAPTCHA, 2FA requirements per role/tenant).
+**spend_limits**
 
-## 8. Initial Admin Bootstrap
+* `user_id`, `monthly_cap_usd NUMERIC(12,2)`, `hard_stop BOOL`
 
-- First migration seeds role/permission sets and creates an admin user (`ADMIN_EMAIL`, `ADMIN_PASSWORD` env values).
-- Seeded admin is marked as email-verified and must enroll 2FA on first login.
-- Subsequent admin invites managed via Admin UI; all admin logins must enforce 2FA.
+**sessions**
 
+* `id UUID PK`, `user_id`
+* `refresh_token_hash BYTEA`
+* `ua TEXT`, `ip INET`
+* `expires_at`, `rotated_at`, `revoked_at` (TIMESTAMPTZ)
+
+**audit_logs**
+
+* `id UUID PK`, `actor_user_id UUID NULL`
+* `action TEXT`, `target_type TEXT`, `target_id TEXT`
+* `ip INET`, `ua TEXT`, `metadata JSONB`, `created_at TIMESTAMPTZ`
+
+**login_attempts** (Redis-Keys), **captcha_receipts** (Redis)
+
+* Persistenz optional, Default Cache.
+
+**Kryptospeicher**
+
+* `mfa_secret` und `recovery_codes` mit AES-GCM appl.-seitig verschlüsseln. Key via KMS/Env.
+
+---
+
+## 4. API (FastAPI, `/v1/*`)
+
+**Auth**
+
+* `POST /auth/register` `{ email, password, captchaToken }`
+* `POST /auth/resend-verification`
+* `GET /auth/verify-email?token=...`
+* `POST /auth/login` `{ email, password, captchaToken? }`
+* `POST /auth/2fa/verify` `{ otp, deviceName? }`
+* `POST /auth/logout`
+* `POST /auth/refresh`
+* `POST /auth/forgot-password` `{ email }`
+* `POST /auth/reset-password` `{ token, newPassword }`
+* `GET /auth/me`
+
+**2FA**
+
+* `POST /auth/2fa/enable-init`
+* `POST /auth/2fa/enable-complete`
+* `POST /auth/2fa/disable`
+* `POST /auth/recovery-login` `{ email, recoveryCode }`
+
+**Plans & Limits**
+
+* `GET /account/plan`, `POST /account/plan`
+* `GET /account/limits`, `POST /account/limits`
+
+**Admin (RBAC: ADMIN)**
+
+* `GET /admin/users` (Filter/Paging)
+* `POST /admin/users/:id/roles`
+* `POST /admin/users/:id/lock`
+* `POST /admin/users/:id/unlock`
+* `POST /admin/users/:id/reset-2fa`
+* `GET /admin/audit-logs` (Filter/Paging)
+
+**Fehlertexte (exakt)**
+
+* Unverified: “You must confirm your registration first. We’ve sent you an email.”
+* Invalid OTP: “Invalid security code.”
+* CAPTCHA required: “Captcha required.”
+* Unauthorized: “You don’t have permission to perform this action.”
+* Cap reached: “Your monthly spending limit has been reached. Adjust your limit to continue.”
+* Wrong creds: “Email or password is incorrect.”
+
+**HTTP**
+
+* 200/201/204 bei Erfolg, 400/401/403/409/429/500 deterministisch.
+* Idempotency: Resend/Forgot via request key throttlen.
+
+---
+
+## 5. User Flows
+
+**Registration**
+
+1. `/register` sammelt `email`, `password`, CAPTCHA.
+2. `POST /auth/register`
+3. Server: Turnstile prüfen, E-Mail-Collision, `UNVERIFIED` User anlegen, Verifikations-Token (24h, single use) generieren, E-Mail enqueuen.
+4. Response 200: “Registration almost done — check your email. The link is valid for 24 hours.”
+
+**E-Mail-Verifikation**
+
+* `GET /auth/verify-email?token=...` prüft Signatur/TTL/Unused.
+* Erfolg → `email_verified_at` setzen, `ACTIVE`, Token konsumieren, Redirect `/login?verified=1`.
+* Expired → bleibt `UNVERIFIED`, Adresse für Neureg erlaubt.
+
+**Login + Adaptive CAPTCHA + 2FA**
+
+* `/login` zeigt CAPTCHA nach Limits/Risiko.
+* `POST /auth/login`:
+
+  * Unverified → 403 mit Text oben.
+  * Fehlerhafte CAPTCHA wenn gefordert → 400.
+  * Falsche Daten → generischer Fehlertext.
+  * Erfolg:
+
+    * Ohne 2FA → Access + Refresh ausgeben und Session recorden.
+    * Mit 2FA → `requires_2fa=true` zurückgeben, Frontend ruft `/auth/2fa/verify`.
+* `POST /auth/2fa/verify`: 5 Fehlversuche → 5-Min-Sperre + CAPTCHA erzwingen.
+
+**2FA Setup/Recovery**
+
+* `enable-init` liefert QR+manuellen Code+`challengeId`.
+* `enable-complete` validiert `otp`, setzt `mfa_enabled=true`, generiert 10 Recovery Codes (einmalig anzeigen/download).
+* `disable` verlangt Passwort + OTP.
+* `recovery-login` nutzt validen Code und rotiert Rest.
+
+**Forgot/Reset**
+
+* `forgot-password` sendet 1h Reset-Token.
+* `reset-password` setzt neues PW; Login erst nach Verifikation.
+
+**Plans/Limits**
+
+* `/account/billing` wählt `FREE`/`PRO`.
+* `/account/limits` setzt Monats-Cap USD und Hard-Stop.
+* Bei Cap: HTTP 402 analog Text oben.
+
+**Admin**
+
+* Bootstrap Admin aus ENV, TOTP bei erstem Login erzwingen.
+* Rollen pflegen, Lock/Unlock, Reset 2FA, Audit Viewer.
+
+---
+
+## 6. Frontend Anforderungen
+
+* Keine globalen Layoutänderungen.
+* Auth Store: Access im Speicher, Refresh in httpOnly Cookie **oder** in sicherem Storage je Betriebsmodus. **Standard: Bearer+Local Storage für Access, Refresh als httpOnly-Cookie**.
+* 401-Interceptor: einmaliger Silent-Refresh, danach Logout.
+* Password Strength Meter (z. B. zxcvbn).
+* 2FA-Setup mit QR, Recovery-Codes nur einmal anzeigen + Download.
+* Security-Seite: Passwort ändern, 2FA togglen, Sessions anzeigen, „sign out others“.
+* Billing/Limits: Plan-Switch, Cap-Eingabe, Forecast, Hard-Stop.
+
+---
+
+## 7. Betrieb & Observability
+
+**Metriken (Prometheus)**
+
+* Auth: `login_success_total`, `login_failure_total`, `totp_failure_total`, `captcha_challenges_total`, `refresh_success_total`, `lockouts_total`
+* Email: `email_enqueued_total`, `email_send_latency_ms`, `email_failed_total`
+* Rate Limit Hits: `rate_limit_block_total`
+* Plans/Limits: `cap_reached_total`
+
+**Tracing (OTel)**
+
+* End-to-End: Frontend → FastAPI → Celery → SMTP. Kontextpropagation aktiv.
+
+**Logs**
+
+* JSON, PII-Redaction für E-Mail, IP teilweise maskiert, keine Tokens/Secrets.
+
+**Alerts**
+
+* Spikes 401/403/429
+* Email Queue Backlog > X
+* Refresh-Fehlerquote > Y%
+* CAPTCHA Fehlerquote > Z%
+
+**Runbooks**
+
+* E-Mail Outage: Queue füllen, später Replay.
+* CAPTCHA Outage: Fail-open nur nach explizitem Feature Flag, gleichzeitig Limits verschärfen.
+* Key Rotation: `kid` neu ausrollen, Refresh parallel akzeptieren bis T+24h.
+
+**SLO/SLA**
+
+* Auth API p95 Latenz < 150 ms
+* Login Fehlerquote < 1%
+* E-Mail Zustell-Start < 30 s p95
+* RTO 1h, RPO 15 min
+
+**Backups**
+
+* Postgres: PITR fähig, tägliche Full, 15-min WAL Upload, 30 Tage Retention.
+* Alembic Versions unter Versionskontrolle.
+
+---
+
+## 8. Compliance & Datenschutz (GDPR)
+
+* Rechtsgrundlagen: Vertragserfüllung (Art. 6(1)(b)) für Auth; berechtigtes Interesse für Sicherheit.
+* Datenminimierung: nur erforderliche PII speichern.
+* Aufbewahrung: Accounts löschbar. Löschung: Soft-Delete + 30 Tage Quarantäne, danach Hard-Delete; Audit-Logs 365 Tage.
+* Betroffenenrechte: Export (JSON), Löschung, Berichtigung.
+* Auftragsverarbeitung: DPA mit E-Mail-Provider/Cloud.
+* DPIA für Auth-Risiken dokumentieren.
+* Cookies: nur technisch notwendige (Refresh httpOnly).
+* Internationaler Transfer: Standardvertragsklauseln falls nötig.
+
+---
+
+## 9. Integrationspunkte Auto-Dev Orchestrator
+
+* Neue Endpunkte unter `/v1/*`, bestehende `/api/*` unverändert.
+* Admin RBAC schützt Orchestrator-Settings.
+* Pull-Request-Automationen unverändert; neue Audit-Events für Admin-Aktionen.
+
+---
+
+## 10. Deploy & Environments
+
+**Envs**: `dev`, `staging`, `prod`. Gleiche Artefakte, andere Konfig.
+
+**Environment Variables (Muss)**
+
+* `DB_URL` (Postgres), `REDIS_URL`
+* `JWT_JWK_CURRENT` (ES256), `JWT_JWK_NEXT` (für Rotation)
+* `ARGON2_TIME`, `ARGON2_MEMORY`, `ARGON2_PARALLELISM`
+* `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`
+* `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`
+* `ADMIN_EMAIL`, `ADMIN_PASSWORD`
+* `ENCRYPTION_KEY` (AES-GCM für mfa/recovery)
+* `OTEL_EXPORTER_OTLP_ENDPOINT`, `PROMETHEUS_SCRAPE=1`
+
+**Startup-Order**
+
+1. DB Migrations (Alembic)
+2. FastAPI App
+3. Celery Worker/Beat
+4. Proxy/TLS
+5. Metrics/Tracing Exporter
+
+**CORS/CSP**
+
+* CORS: Origins fest whitelisten.
+* CSP: `default-src 'self'`; `script-src 'self' https://challenges.cloudflare.com`; `connect-src 'self' https://api.cloudflare.com`; `frame-src https://challenges.cloudflare.com`; `img-src 'self' data:`
+
+---
+
+## 11. Teststrategie
+
+* Unit: Hashing, JWT, Token Rotation, Rate Limit
+* Integration: Register→Verify→Login→2FA→Refresh→Logout
+* Security Tests: Timing-Safe Vergleiche, Replay-Prevention, Locked Account
+* E2E: Cypress/Playwright Flows für FE
+* Load: Login 200 RPS, p95 < 150 ms
+* Chaos: Redis/SMTP/DB kurzzeitig unzugänglich, korrekte Degradierung
+
+---
+
+## 12. Milestones (Tasks für Codex)
+
+**M1 – Foundations**
+
+* Postgres + Alembic, Seed Admin, Redis Integration, Argon2id, JWT/JWK Rotation, Rate-Limiter Middleware
+
+**M2 – Registration & Verification**
+
+* Endpunkte, E-Mail Templates, FE Seiten, Turnstile Integration
+
+**M3 – Login, Sessions, 2FA**
+
+* Login/Refresh/Logout, Session Store, TOTP + Recovery Codes, FE Security-Seiten
+
+**M4 – Plans & Limits**
+
+* Endpunkte, Enforcement Hook, FE Pages, Cap-Banner
+
+**M5 – Admin & Auditing**
+
+* Admin APIs/UI, Audit Viewer, Role Management
+
+**M6 – Hardening & SRE**
+
+* OTel, Prometheus, Alerts, Runbooks, Key-Rotation Pipeline, Pen-Test Fixes
+
+---
+
+## 13. E-Mail-Vorlagen
+
+* Verify: Betreff “Confirm your email”, Link 24h gültig.
+* Reset: Betreff “Reset your password”, Link 1h gültig.
+* Lockout: “Account temporarily locked due to multiple failed attempts.”
+* New Device: “New sign-in detected.”
+
+Alle Plain-Text + einfache HTML, keine Tracking-Pixel.
+
+---
+
+## 14. Edge-Cases & Fail-Szenarien
+
+* Doppelregistrierung unverifizierter E-Mail: Resend statt Fehler.
+* Verifikations-Token Reuse: One-time, nach Nutzung ungültig.
+* Refresh Theft: Rotation + Revoke auf Nutzung des alten Tokens, alle Sessions des Users invalidieren.
+* Clock Skew: ±2min Toleranz bei TOTP/JWT.
+* IP-Wechsel Mobil: Refresh Bindung /24, nicht vollständige IP.
+
+---
+
+## 15. Performance & Skalierung
+
+* DB Indizes: `users.email`, `sessions.user_id`, `audit_logs.created_at`, `user_roles.user_id`
+* Caching: Login Throttles/CAPTCHA in Redis, keine PII im Cache.
+* Celery Concurrency: CPU-Kerne x2, Backoff-Retry für SMTP.
+
+---
+
+## 16. Passwort- und Validierungsregeln
+
+* Passwort min 10 Zeichen, Check gegen häufige Leaks (lokale Liste).
+* E-Mail normalisieren lower-case, Trim.
+* Gerät/UA Länge begrenzen, Validierung serverseitig.
+
+---
+
+## 17. Konstante Texte (FE/BE identisch)
+
+* „Registration almost done — check your email. The link is valid for 24 hours.“
+* „You must confirm your registration first. We’ve sent you an email.“
+* „Invalid security code.“
+* „Captcha required.“
+* „You don’t have permission to perform this action.“
+* „Your monthly spending limit has been reached. Adjust your limit to continue.“
+* „Email or password is incorrect.“
+
+---
+
+## 18. Unveränderliche Designentscheidungen
+
+* Cloudflare Turnstile, kein alternatives CAPTCHA.
+* ES256 JWT, kein RS, kein HS.
+* Postgres Prod, SQLite nur lokal.
+* Alembic, kein Flyway/Liquibase.
+* FastAPI Monolith mit modularen Services, keine Microservices in v1.
