@@ -1,0 +1,55 @@
+{
+  "job_id": "5c7f8c53-78e1-480a-8753-b51f64ddae2a",
+  "step_id": "becf5e23-270b-43f9-ade8-d97b083a4007",
+  "role": "coder-step",
+  "tokens_final": 1251,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "history::a028f407-b3c2-41e9-a66a-fe057a248ae5",
+      "source": "history",
+      "score": 34.9933745889731,
+      "tokens": 308,
+      "metadata": {
+        "role": "cto-plan",
+        "step_id": null
+      }
+    },
+    {
+      "id": "step",
+      "source": "step",
+      "score": 28.32457528280119,
+      "tokens": 86,
+      "metadata": {}
+    },
+    {
+      "id": "task",
+      "source": "task",
+      "score": 8.11110721383708,
+      "tokens": 10,
+      "metadata": {}
+    },
+    {
+      "id": "artifact::context_cto-plan.json",
+      "source": "artifact",
+      "score": 6.6900239527366265,
+      "tokens": 131,
+      "metadata": {
+        "path": "artifacts/5c7f8c53-78e1-480a-8753-b51f64ddae2a/context_cto-plan.json"
+      }
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[history score=34.99] [{\"title\": \"Create HelloWorld.java file\", \"rationale\": \"A Java program must be contained in a file with the same name as the public class. Creating HelloWorld.java sets up the correct file for the simple program.\", \"acceptance\": \"File HelloWorld.java is created and can be edited.\", \"files\": [\"HelloWorld.java\"], \"commands\": []}, {\"title\": \"Write Hello World program in Java\", \"rationale\": \"To have a working Java program, write a main class with the main method that prints 'Hello, World!' to the console.\", \"acceptance\": \"HelloWorld.java contains public class HelloWorld with main method and prints 'Hello, World!' on execution.\", \"files\": [\"HelloWorld.java\"], \"commands\": []}, {\"title\": \"Compile the Java program\", \"rationale\": \"Java source files need to be compiled into bytecode (.class files) before execution.\", \"acceptance\": \"HelloWorld.class file is generated with no compile errors.\", \"files\": [\"HelloWorld.java\"], \"commands\": [\"javac HelloWorld.java\"]}, {\"title\": \"Run the HelloWorld program\", \"rationale\": \"After compilation, running the program verifies correct output.\", \"acceptance\": \"The program runs without errors and outputs exactly 'Hello, World!'\", \"files\": [\"HelloWorld.class\"], \"commands\": [\"java HelloWorld\"]}]",
+    "[step score=28.32] { \"title\": \"Create HelloWorld.java file\", \"rationale\": \"A Java program must be contained in a file with the same name as the public class. Creating HelloWorld.java sets up the correct file for the simple program.\",",
+    "[task score=8.11] create a simple hello world java program",
+    "[artifact score=6.69] context_cto-plan.json: { \"job_id\": \"5c7f8c53-78e1-480a-8753-b51f64ddae2a\","
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "job_id": "76491ce1-990c-457b-af58-9ea9c1e11941",
+  "step_id": "580469a4-3bb5-485b-a232-997dcab6ea6e",
+  "role": "coder-step",
+  "tokens_final": 952,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "step",
+      "source": "step",
+      "score": 44.593661378862,
+      "tokens": 121,
+      "metadata": {}
+    },
+    {
+      "id": "history::1b15381d-25a7-4fc5-b423-7ac0c5e590c3",
+      "source": "history",
+      "score": 43.99066482832191,
+      "tokens": 113,
+      "metadata": {
+        "role": "cto-plan",
+        "step_id": null
+      }
+    },
+    {
+      "id": "task",
+      "source": "task",
+      "score": 16.55539728423809,
+      "tokens": 18,
+      "metadata": {}
+    },
+    {
+      "id": "artifact::context_cto-plan.json",
+      "source": "artifact",
+      "score": 15.72564040167442,
+      "tokens": 140,
+      "metadata": {
+        "path": "artifacts/76491ce1-990c-457b-af58-9ea9c1e11941/context_cto-plan.json"
+      }
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[step score=44.59] { \"title\": \"Create lol.java with Hello World program\", \"rationale\": \"To fulfill the task requirement, we need to create a single Java file named lol.java that contains a simple program printing 'Hello, World!' to standard output.\",",
+    "[history score=43.99] [{\"title\": \"Create lol.java with Hello World program\", \"rationale\": \"To fulfill the task requirement, we need to create a single Java file named lol.java that contains a simple program printing 'Hello, World!' to standard output.\", \"acceptance\": \"The file lol.java exists and can be compiled with javac, and when run with java, it outputs exactly 'Hello, World!' followed by a newline.\", \"files\": [\"lol.java\"], \"commands\": [\"javac lol.java\", \"java lol\"]}]",
+    "[task score=16.56] create a simple hello world java program, only 1 file with name \"lol.java\"",
+    "[artifact score=15.73] context_cto-plan.json: { \"job_id\": \"76491ce1-990c-457b-af58-9ea9c1e11941\","
+  ]
+}

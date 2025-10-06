@@ -1,0 +1,55 @@
+{
+  "job_id": "89c21529-f8da-4924-b3ce-4888a67c17a5",
+  "step_id": "2ec3461a-19a6-4327-a8d1-9562be94fc46",
+  "role": "coder-step",
+  "tokens_final": 893,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "history::294a7214-b5cd-415c-bd38-e9f92705de6f",
+      "source": "history",
+      "score": 35.07332747708488,
+      "tokens": 155,
+      "metadata": {
+        "role": "cto-plan",
+        "step_id": null
+      }
+    },
+    {
+      "id": "step",
+      "source": "step",
+      "score": 31.093363046503708,
+      "tokens": 84,
+      "metadata": {}
+    },
+    {
+      "id": "task",
+      "source": "task",
+      "score": 10.539674256056653,
+      "tokens": 6,
+      "metadata": {}
+    },
+    {
+      "id": "artifact::context_cto-plan.json",
+      "source": "artifact",
+      "score": 7.9332063964073924,
+      "tokens": 127,
+      "metadata": {
+        "path": "artifacts/89c21529-f8da-4924-b3ce-4888a67c17a5/context_cto-plan.json"
+      }
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[history score=35.07] [{\"title\": \"Create a C# file for Hello World\", \"rationale\": \"We need a simple C# source file that prints 'Hello World' to the console as per conventions.\", \"acceptance\": \"File 'HelloWorld.cs' exists with a valid C# Program that prints 'Hello World' to the console when run.\", \"files\": [\"HelloWorld.cs\"], \"commands\": []}, {\"title\": \"Write the Hello World program code in C#\", \"rationale\": \"Implement a minimal console application in C# outputting 'Hello World'.\", \"acceptance\": \"'HelloWorld.cs' contains a static Main method which prints 'Hello World' using Console.WriteLine.\", \"files\": [\"HelloWorld.cs\"], \"commands\": []}]",
+    "[step score=31.09] { \"title\": \"Create a C# file for Hello World\", \"rationale\": \"We need a simple C# source file that prints 'Hello World' to the console as per conventions.\",",
+    "[task score=10.54] write a hello world c# file",
+    "[artifact score=7.93] context_cto-plan.json: { \"job_id\": \"89c21529-f8da-4924-b3ce-4888a67c17a5\","
+  ]
+}

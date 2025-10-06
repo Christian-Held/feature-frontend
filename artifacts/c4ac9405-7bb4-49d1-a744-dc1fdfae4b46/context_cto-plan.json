@@ -1,0 +1,26 @@
+{
+  "job_id": "c4ac9405-7bb4-49d1-a744-dc1fdfae4b46",
+  "step_id": null,
+  "role": "cto-plan",
+  "tokens_final": 180,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "task",
+      "source": "task",
+      "score": 8.2,
+      "tokens": 18,
+      "metadata": {}
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[task score=8.20] create a simple hello world java program, only 1 file with name \"lol.java\""
+  ]
+}

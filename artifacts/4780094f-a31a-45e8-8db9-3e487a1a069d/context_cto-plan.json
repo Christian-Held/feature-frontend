@@ -1,0 +1,26 @@
+{
+  "job_id": "4780094f-a31a-45e8-8db9-3e487a1a069d",
+  "step_id": null,
+  "role": "cto-plan",
+  "tokens_final": 1492,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "task",
+      "source": "task",
+      "score": 279.42548431489405,
+      "tokens": 619,
+      "metadata": {}
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[task score=279.43] verbessere folgendes bewerbungschreiben indem du etwas erzähl etwas über diese applikation erzählst. hier ist das motivationsschreiben :  CHRISTIAN"
+  ]
+}

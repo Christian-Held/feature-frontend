@@ -1,0 +1,55 @@
+{
+  "job_id": "753efc54-93d0-4992-875d-01b4a8ffb310",
+  "step_id": "550c2f64-9df3-4375-92e9-7ac635c93f87",
+  "role": "coder-step",
+  "tokens_final": 1015,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "step",
+      "source": "step",
+      "score": 36.669012905845186,
+      "tokens": 136,
+      "metadata": {}
+    },
+    {
+      "id": "history::a63d0cd8-97a3-448c-b2a1-b103b191bfac",
+      "source": "history",
+      "score": 36.076854699751614,
+      "tokens": 128,
+      "metadata": {
+        "role": "cto-plan",
+        "step_id": null
+      }
+    },
+    {
+      "id": "task",
+      "source": "task",
+      "score": 15.364115322904551,
+      "tokens": 18,
+      "metadata": {}
+    },
+    {
+      "id": "artifact::context_cto-plan.json",
+      "source": "artifact",
+      "score": 14.503264103120864,
+      "tokens": 143,
+      "metadata": {
+        "path": "artifacts/753efc54-93d0-4992-875d-01b4a8ffb310/context_cto-plan.json"
+      }
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[step score=36.67] { \"title\": \"Create Java File with Hello World Program\", \"rationale\": \"We need to create a simple Java program that prints 'Hello, World!' to the console. This will be done in a single file named lol.java.\",",
+    "[history score=36.08] [{\"title\": \"Create Java File with Hello World Program\", \"rationale\": \"We need to create a simple Java program that prints 'Hello, World!' to the console. This will be done in a single file named lol.java.\", \"acceptance\": \"The program should compile and execute without errors, displaying 'Hello, World!' in the output.\", \"files\": [\"lol.java\"], \"commands\": [\"echo 'public class lol { public static void main(String[] args) { System.out.println(\\\"Hello, World!\\\"); } }' > lol.java\", \"javac lol.java\", \"java lol\"]}]",
+    "[task score=15.36] create a simple hello world java program, only 1 file with name \"lol.java\"",
+    "[artifact score=14.50] context_cto-plan.json: { \"job_id\": \"753efc54-93d0-4992-875d-01b4a8ffb310\","
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "job_id": "60dc9105-e8e6-4449-954e-acece43cc1a2",
+  "step_id": null,
+  "role": "cto-plan",
+  "tokens_final": 163,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "task",
+      "source": "task",
+      "score": 6.4,
+      "tokens": 13,
+      "metadata": {}
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[task score=6.40] create a simple hello world output on console in java"
+  ]
+}

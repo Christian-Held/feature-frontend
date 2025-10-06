@@ -1,0 +1,55 @@
+{
+  "job_id": "bd593345-a662-4477-b763-2de6a14de0cf",
+  "step_id": "3ee2d877-0094-497d-a4a4-a714dd4cbc59",
+  "role": "coder-step",
+  "tokens_final": 854,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "history::2fa2c981-2209-46e9-a086-234a3312a8aa",
+      "source": "history",
+      "score": 29.74239021382272,
+      "tokens": 105,
+      "metadata": {
+        "role": "cto-plan",
+        "step_id": null
+      }
+    },
+    {
+      "id": "step",
+      "source": "step",
+      "score": 29.737307231179273,
+      "tokens": 112,
+      "metadata": {}
+    },
+    {
+      "id": "task",
+      "source": "task",
+      "score": 6.3098999776986595,
+      "tokens": 6,
+      "metadata": {}
+    },
+    {
+      "id": "artifact::context_cto-plan.json",
+      "source": "artifact",
+      "score": 4.32099236113023,
+      "tokens": 127,
+      "metadata": {
+        "path": "artifacts/bd593345-a662-4477-b763-2de6a14de0cf/context_cto-plan.json"
+      }
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[history score=29.74] [{\"title\": \"Create HelloWorld.java file\", \"rationale\": \"A simple Java program demonstrating the creation of a 'Hello, World!' application is necessary to fulfill the task requirements.\", \"acceptance\": \"A file named HelloWorld.java exists containing a valid Java program that prints 'Hello, World!' to the standard output when run.\", \"files\": [\"HelloWorld.java\"], \"commands\": [\"javac HelloWorld.java\", \"java HelloWorld\"]}]",
+    "[step score=29.74] { \"title\": \"Create HelloWorld.java file\", \"rationale\": \"A simple Java program demonstrating the creation of a 'Hello, World!' application is necessary to fulfill the task requirements.\",",
+    "[task score=6.31] create helo world java file",
+    "[artifact score=4.32] context_cto-plan.json: { \"job_id\": \"bd593345-a662-4477-b763-2de6a14de0cf\","
+  ]
+}

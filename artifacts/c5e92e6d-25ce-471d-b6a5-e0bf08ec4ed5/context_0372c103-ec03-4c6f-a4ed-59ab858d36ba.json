@@ -1,0 +1,55 @@
+{
+  "job_id": "c5e92e6d-25ce-471d-b6a5-e0bf08ec4ed5",
+  "step_id": "0372c103-ec03-4c6f-a4ed-59ab858d36ba",
+  "role": "coder-step",
+  "tokens_final": 872,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "step",
+      "source": "step",
+      "score": 29.994338979387813,
+      "tokens": 104,
+      "metadata": {}
+    },
+    {
+      "id": "history::c68e5ec9-2ba6-47f3-99d0-c55367edfff1",
+      "source": "history",
+      "score": 29.39015168037363,
+      "tokens": 96,
+      "metadata": {
+        "role": "cto-plan",
+        "step_id": null
+      }
+    },
+    {
+      "id": "task",
+      "source": "task",
+      "score": 14.170787806819547,
+      "tokens": 18,
+      "metadata": {}
+    },
+    {
+      "id": "artifact::context_cto-plan.json",
+      "source": "artifact",
+      "score": 13.318663691804241,
+      "tokens": 140,
+      "metadata": {
+        "path": "artifacts/c5e92e6d-25ce-471d-b6a5-e0bf08ec4ed5/context_cto-plan.json"
+      }
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[step score=29.99] { \"title\": \"Create 'lol.java' with Hello World Program\", \"rationale\": \"A single Java source file named 'lol.java' is required, containing a basic program that prints 'Hello, World!'.\",",
+    "[history score=29.39] [{\"title\": \"Create 'lol.java' with Hello World Program\", \"rationale\": \"A single Java source file named 'lol.java' is required, containing a basic program that prints 'Hello, World!'.\", \"acceptance\": \"The file 'lol.java' exists and, when compiled and run with 'java', prints exactly 'Hello, World!' to standard output.\", \"files\": [\"lol.java\"], \"commands\": [\"javac lol.java\", \"java lol\"]}]",
+    "[task score=14.17] create a simple hello world java program, only 1 file with name \"lol.java\"",
+    "[artifact score=13.32] context_cto-plan.json: { \"job_id\": \"c5e92e6d-25ce-471d-b6a5-e0bf08ec4ed5\","
+  ]
+}

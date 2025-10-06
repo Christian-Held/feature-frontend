@@ -1,0 +1,55 @@
+{
+  "job_id": "21ed9947-e5d5-4b87-85f6-e880ab634c8b",
+  "step_id": "b2cd2b85-2099-4783-b24b-0ce2691b090c",
+  "role": "coder-step",
+  "tokens_final": 940,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "history::28f026c4-24ae-4bc5-8097-224e0697d747",
+      "source": "history",
+      "score": 40.654914106362995,
+      "tokens": 161,
+      "metadata": {
+        "role": "cto-plan",
+        "step_id": null
+      }
+    },
+    {
+      "id": "step",
+      "source": "step",
+      "score": 36.9502443735707,
+      "tokens": 93,
+      "metadata": {}
+    },
+    {
+      "id": "task",
+      "source": "task",
+      "score": 12.330076909129849,
+      "tokens": 8,
+      "metadata": {}
+    },
+    {
+      "id": "artifact::context_cto-plan.json",
+      "source": "artifact",
+      "score": 10.337670721228957,
+      "tokens": 132,
+      "metadata": {
+        "path": "artifacts/21ed9947-e5d5-4b87-85f6-e880ab634c8b/context_cto-plan.json"
+      }
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[history score=40.65] [{\"title\": \"Create a Go source file for Hello World\", \"rationale\": \"To fulfill the task requirement, we need to write a simple Go program that prints 'Hello, World!' to the console.\", \"acceptance\": \"A Go file named 'hello.go' exists and contains a minimal valid Go program that prints 'Hello, World!' on execution.\", \"files\": [\"hello.go\"], \"commands\": []}, {\"title\": \"Test the Hello World Go program\", \"rationale\": \"Verify that the written Go program compiles and runs correctly, producing the expected output.\", \"acceptance\": \"Running 'go run hello.go' outputs 'Hello, World!' exactly.\", \"files\": [\"hello.go\"], \"commands\": [\"go run hello.go\"]}]",
+    "[step score=36.95] { \"title\": \"Create a Go source file for Hello World\", \"rationale\": \"To fulfill the task requirement, we need to write a simple Go program that prints 'Hello, World!' to the console.\",",
+    "[task score=12.33] write a hello world go lang file",
+    "[artifact score=10.34] context_cto-plan.json: { \"job_id\": \"21ed9947-e5d5-4b87-85f6-e880ab634c8b\","
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "job_id": "89c21529-f8da-4924-b3ce-4888a67c17a5",
+  "step_id": "5609c283-1e42-4611-a2bf-f22c9640b9c1",
+  "role": "coder-step",
+  "tokens_final": 1773,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "artifact::context_2ec3461a-19a6-4327-a8d1-9562be94fc46.json",
+      "source": "artifact",
+      "score": 28.0752313535677,
+      "tokens": 551,
+      "metadata": {
+        "path": "artifacts/89c21529-f8da-4924-b3ce-4888a67c17a5/context_2ec3461a-19a6-4327-a8d1-9562be94fc46.json"
+      }
+    },
+    {
+      "id": "history::294a7214-b5cd-415c-bd38-e9f92705de6f",
+      "source": "history",
+      "score": 25.066688637769783,
+      "tokens": 155,
+      "metadata": {
+        "role": "cto-plan",
+        "step_id": null
+      }
+    },
+    {
+      "id": "step",
+      "source": "step",
+      "score": 19.274629900285905,
+      "tokens": 80,
+      "metadata": {}
+    },
+    {
+      "id": "task",
+      "source": "task",
+      "score": 8.134016139275207,
+      "tokens": 6,
+      "metadata": {}
+    },
+    {
+      "id": "artifact::context_cto-plan.json",
+      "source": "artifact",
+      "score": 7.322490039840931,
+      "tokens": 127,
+      "metadata": {
+        "path": "artifacts/89c21529-f8da-4924-b3ce-4888a67c17a5/context_cto-plan.json"
+      }
+    },
+    {
+      "id": "repo::HelloWorld.cs::0",
+      "source": "repo",
+      "score": 6.135100219549596,
+      "tokens": 143,
+      "metadata": {
+        "path": "HelloWorld.cs"
+      }
+    },
+    {
+      "id": "history::46dc6717-9465-48d9-8934-6ea14cb41665",
+      "source": "history",
+      "score": 1.4516553505303105,
+      "tokens": 33,
+      "metadata": {
+        "role": "coder-step",
+        "step_id": "2ec3461a-19a6-4327-a8d1-9562be94fc46"
+      }
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[artifact score=28.08] context_2ec3461a-19a6-4327-a8d1-9562be94fc46.json: { \"job_id\": \"89c21529-f8da-4924-b3ce-4888a67c17a5\",",
+    "[history score=25.07] [{\"title\": \"Create a C# file for Hello World\", \"rationale\": \"We need a simple C# source file that prints 'Hello World' to the console as per conventions.\", \"acceptance\": \"File 'HelloWorld.cs' exists with a valid C# Program that prints 'Hello World' to the console when run.\", \"files\": [\"HelloWorld.cs\"], \"commands\": []}, {\"title\": \"Write the Hello World program code in C#\", \"rationale\": \"Implement a minimal console application in C# outputting 'Hello World'.\", \"acceptance\": \"'HelloWorld.cs' contains a static Main method which prints 'Hello World' using Console.WriteLine.\", \"files\": [\"HelloWorld.cs\"], \"commands\": []}]",
+    "[step score=19.27] { \"title\": \"Write the Hello World program code in C#\", \"rationale\": \"Implement a minimal console application in C# outputting 'Hello World'.\",",
+    "[task score=8.13] write a hello world c# file",
+    "[artifact score=7.32] context_cto-plan.json: { \"job_id\": \"89c21529-f8da-4924-b3ce-4888a67c17a5\",",
+    "[repo score=6.14] HelloWorld.cs: 0001: using System; 0002:",
+    "[history score=1.45] Model output: --- HelloWorld.cs::FULL +++ HelloWorld.cs::FULL @@"
+  ]
+}

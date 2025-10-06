@@ -1,0 +1,137 @@
+{
+  "job_id": "6119037e-2b78-4ff6-b626-9f38dfc91289",
+  "step_id": "9f0c1a50-6499-4752-b3a2-22845241a2c8",
+  "role": "coder-step",
+  "tokens_final": 12310,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "artifact::context_63131581-59ac-476f-b77d-f320e6077fe2.json",
+      "source": "artifact",
+      "score": 30.58497778802897,
+      "tokens": 1504,
+      "metadata": {
+        "path": "artifacts/6119037e-2b78-4ff6-b626-9f38dfc91289/context_63131581-59ac-476f-b77d-f320e6077fe2.json"
+      }
+    },
+    {
+      "id": "history::5e725fd8-d7e9-4856-8a39-19c7ad59981f",
+      "source": "history",
+      "score": 30.144425578403098,
+      "tokens": 434,
+      "metadata": {
+        "role": "cto-plan",
+        "step_id": null
+      }
+    },
+    {
+      "id": "step",
+      "source": "step",
+      "score": 23.988383411026934,
+      "tokens": 119,
+      "metadata": {}
+    },
+    {
+      "id": "repo::.git/hooks/pre-rebase.sample::18",
+      "source": "repo",
+      "score": 13.280032637070171,
+      "tokens": 1485,
+      "metadata": {
+        "path": ".git/hooks/pre-rebase.sample"
+      }
+    },
+    {
+      "id": "repo::.git/logs/HEAD::25",
+      "source": "repo",
+      "score": 12.354538694765408,
+      "tokens": 2019,
+      "metadata": {
+        "path": ".git/logs/HEAD"
+      }
+    },
+    {
+      "id": "repo::.git/hooks/push-to-checkout.sample::21",
+      "source": "repo",
+      "score": 11.153318745598089,
+      "tokens": 821,
+      "metadata": {
+        "path": ".git/hooks/push-to-checkout.sample"
+      }
+    },
+    {
+      "id": "repo::.git/hooks/fsmonitor-watchman.sample::12",
+      "source": "repo",
+      "score": 10.870912331252878,
+      "tokens": 1451,
+      "metadata": {
+        "path": ".git/hooks/fsmonitor-watchman.sample"
+      }
+    },
+    {
+      "id": "repo::.git/hooks/update.sample::23",
+      "source": "repo",
+      "score": 9.736429732945346,
+      "tokens": 1110,
+      "metadata": {
+        "path": ".git/hooks/update.sample"
+      }
+    },
+    {
+      "id": "repo::.git/hooks/pre-push.sample::17",
+      "source": "repo",
+      "score": 8.639883641383717,
+      "tokens": 429,
+      "metadata": {
+        "path": ".git/hooks/pre-push.sample"
+      }
+    },
+    {
+      "id": "repo::.git/hooks/pre-commit.sample::15",
+      "source": "repo",
+      "score": 8.53154808619937,
+      "tokens": 491,
+      "metadata": {
+        "path": ".git/hooks/pre-commit.sample"
+      }
+    },
+    {
+      "id": "repo::.git/hooks/prepare-commit-msg.sample::20",
+      "source": "repo",
+      "score": 8.10260227566526,
+      "tokens": 445,
+      "metadata": {
+        "path": ".git/hooks/prepare-commit-msg.sample"
+      }
+    },
+    {
+      "id": "repo::.git/hooks/commit-msg.sample::11",
+      "source": "repo",
+      "score": 7.910753536350794,
+      "tokens": 267,
+      "metadata": {
+        "path": ".git/hooks/commit-msg.sample"
+      }
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[artifact score=30.58] context_63131581-59ac-476f-b77d-f320e6077fe2.json: { \"job_id\": \"6119037e-2b78-4ff6-b626-9f38dfc91289\",",
+    "[history score=30.14] [{\"title\": \"Set up C# development environment\", \"rationale\": \"Before writing any code, we need to ensure that a suitable environment for C# development is in place, including an IDE like Visual Studio or a .NET SDK.\", \"acceptance\": \"C# development environment is confirmed to be set up and operational.\", \"files\": [], \"commands\": [\"Download and install Visual Studio or .NET SDK from the official website.\", \"Ensure that C# workload is included in the installation.\"]}, {\"title\": \"Create a new C# Console Application project\", \"rationale\": \"To implement the 'Hello World' program, we need to create a project that supports console applications.\", \"acceptance\": \"A new C# Console Application project is created successfully.\", \"files\": [], \"commands\": [\"Open Visual Studio.\", \"Select 'Create a new project'.\", \"Choose 'Console App (.NET Core)' and click Next.\", \"Enter a project name, location, and click Create.\"]}, {\"title\": \"Write the Hello World program\", \"rationale\": \"The core functionality of the task is to write a simple program that outputs 'Hello, World!' to the console.\", \"acceptance\": \"The code has been written without syntax errors.\", \"files\": [\"Program.cs\"], \"commands\": [\"Open Program.cs in the project.\", \"Replace the existing code with: 'using System; class Program { static void Main() { Console.WriteLine(\\\"Hello, World!\\\"); } }'.\"]}, {\"title\": \"Build and run the program\", \"rationale\": \"To confirm that the program works as intended, we need to compile the code and run it to see the output.\", \"acceptance\": \"The program builds successfully and outputs 'Hello, World!' when run.\", \"files\": [], \"commands\": [\"Press Ctrl + F5 to build and run the application.\", \"Ensure 'Hello, World!' is displayed in the console.\"]}]",
+    "[step score=23.99] { \"title\": \"Create a new C# Console Application project\", \"rationale\": \"To implement the 'Hello World' program, we need to create a project that supports console applications.\",",
+    "[repo score=13.28] .git/hooks/pre-rebase.sample: 0001: #!/bin/sh 0002: #",
+    "[repo score=12.35] .git/logs/HEAD: 0001: 0000000000000000000000000000000000000000 f44e49688ee9236c2a1d84bb86ad45de33036bfa Christian Held <christianheld1981@gmail.com> 1759736283 +0200\tclone: from https://github.com/Christian-Held/test.git 0002: f44e49688ee9236c2a1d84bb86ad45de33036bfa f44e49688ee9236c2a1d84bb86ad45de33036bfa Christian Held <christianheld1981@gmail.com> 1759737192 +0200\tcheckout: moving from master to master",
+    "[repo score=11.15] .git/hooks/push-to-checkout.sample: 0001: #!/bin/sh 0002:",
+    "[repo score=10.87] .git/hooks/fsmonitor-watchman.sample: 0001: #!/usr/bin/perl 0002:",
+    "[repo score=9.74] .git/hooks/update.sample: 0001: #!/bin/sh 0002: #",
+    "[repo score=8.64] .git/hooks/pre-push.sample: 0001: #!/bin/sh 0002:",
+    "[repo score=8.53] .git/hooks/pre-commit.sample: 0001: #!/bin/sh 0002: #",
+    "[repo score=8.10] .git/hooks/prepare-commit-msg.sample: 0001: #!/bin/sh 0002: #",
+    "[repo score=7.91] .git/hooks/commit-msg.sample: 0001: #!/bin/sh 0002: #"
+  ]
+}

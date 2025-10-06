@@ -1,0 +1,86 @@
+{
+  "job_id": "21ed9947-e5d5-4b87-85f6-e880ab634c8b",
+  "step_id": "b63f860d-6ae6-406b-9fa0-b9e4bbc7c0fd",
+  "role": "coder-step",
+  "tokens_final": 1806,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "artifact::context_b2cd2b85-2099-4783-b24b-0ce2691b090c.json",
+      "source": "artifact",
+      "score": 26.3694207538397,
+      "tokens": 565,
+      "metadata": {
+        "path": "artifacts/21ed9947-e5d5-4b87-85f6-e880ab634c8b/context_b2cd2b85-2099-4783-b24b-0ce2691b090c.json"
+      }
+    },
+    {
+      "id": "history::28f026c4-24ae-4bc5-8097-224e0697d747",
+      "source": "history",
+      "score": 23.747862107380268,
+      "tokens": 161,
+      "metadata": {
+        "role": "cto-plan",
+        "step_id": null
+      }
+    },
+    {
+      "id": "step",
+      "source": "step",
+      "score": 17.830576276193153,
+      "tokens": 78,
+      "metadata": {}
+    },
+    {
+      "id": "repo::hello.go::0",
+      "source": "repo",
+      "score": 12.00463820658467,
+      "tokens": 139,
+      "metadata": {
+        "path": "hello.go"
+      }
+    },
+    {
+      "id": "task",
+      "source": "task",
+      "score": 6.926574519369928,
+      "tokens": 8,
+      "metadata": {}
+    },
+    {
+      "id": "artifact::context_cto-plan.json",
+      "source": "artifact",
+      "score": 6.123186413814528,
+      "tokens": 132,
+      "metadata": {
+        "path": "artifacts/21ed9947-e5d5-4b87-85f6-e880ab634c8b/context_cto-plan.json"
+      }
+    },
+    {
+      "id": "history::84dba0af-df1c-4212-9f81-29e42d2b8d84",
+      "source": "history",
+      "score": 0.2586548751960247,
+      "tokens": 33,
+      "metadata": {
+        "role": "coder-step",
+        "step_id": "b2cd2b85-2099-4783-b24b-0ce2691b090c"
+      }
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[artifact score=26.37] context_b2cd2b85-2099-4783-b24b-0ce2691b090c.json: { \"job_id\": \"21ed9947-e5d5-4b87-85f6-e880ab634c8b\",",
+    "[history score=23.75] [{\"title\": \"Create a Go source file for Hello World\", \"rationale\": \"To fulfill the task requirement, we need to write a simple Go program that prints 'Hello, World!' to the console.\", \"acceptance\": \"A Go file named 'hello.go' exists and contains a minimal valid Go program that prints 'Hello, World!' on execution.\", \"files\": [\"hello.go\"], \"commands\": []}, {\"title\": \"Test the Hello World Go program\", \"rationale\": \"Verify that the written Go program compiles and runs correctly, producing the expected output.\", \"acceptance\": \"Running 'go run hello.go' outputs 'Hello, World!' exactly.\", \"files\": [\"hello.go\"], \"commands\": [\"go run hello.go\"]}]",
+    "[step score=17.83] { \"title\": \"Test the Hello World Go program\", \"rationale\": \"Verify that the written Go program compiles and runs correctly, producing the expected output.\",",
+    "[repo score=12.00] hello.go: 0001: package main 0002:",
+    "[task score=6.93] write a hello world go lang file",
+    "[artifact score=6.12] context_cto-plan.json: { \"job_id\": \"21ed9947-e5d5-4b87-85f6-e880ab634c8b\",",
+    "[history score=0.26] Model output: --- hello.go::FULL +++ hello.go::FULL @@"
+  ]
+}

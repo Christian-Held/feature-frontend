@@ -1,0 +1,26 @@
+{
+  "job_id": "f2a2f90a-fa07-48fa-9de2-76845113618b",
+  "step_id": null,
+  "role": "cto-plan",
+  "tokens_final": 145,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "task",
+      "source": "task",
+      "score": 3.3999996910581776,
+      "tokens": 7,
+      "metadata": {}
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[task score=3.40] write hello world c# programm"
+  ]
+}
