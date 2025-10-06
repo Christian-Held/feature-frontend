@@ -39,3 +39,19 @@ def test_apply_unified_diff_with_context_header_suffix(tmp_path):
     for path, content in apply_unified_diff(tmp_path, diff):
         safe_write(path, content)
     assert file_path.read_text(encoding="utf-8") == updated
+
+
+def test_apply_unified_diff_with_minimal_hunk_header(tmp_path):
+    original = "print('old')\n"
+    updated = "print('new')\n"
+    file_path = tmp_path / "script.py"
+    file_path.write_text(original, encoding="utf-8")
+    diff = """--- a/script.py
++++ b/script.py
+@@
+-print('old')
++print('new')
+"""
+    for path, content in apply_unified_diff(tmp_path, diff):
+        safe_write(path, content)
+    assert file_path.read_text(encoding="utf-8") == updated
