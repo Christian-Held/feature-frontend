@@ -1,0 +1,16 @@
+task:
+  name: "AUTH Login, Sessions & 2FA"
+  repo_path: "feature-auth/tasks_bootstrap"
+  goal: |
+    Implement the login, session rotation, and multi-factor workflows described in the spec. Build password authentication
+    with adaptive CAPTCHA, rotating refresh tokens, session revocation, and `/v1/auth/login`, `/v1/auth/logout`, `/v1/auth/refresh`,
+    and `/v1/auth/me` endpoints. Deliver the TOTP setup, verification, disable, and recovery login APIs plus matching frontend
+    flows for `/login`, `/2fa/setup`, `/2fa/verify`, and recovery code handling.
+  context:
+    spec_file: "docs/architecture/AUTH_PLATFORM.md"
+  outputs:
+    - backend/
+    - frontend/
+    - alembic/
+    - tests/
+  tests: true

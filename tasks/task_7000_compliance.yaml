@@ -1,0 +1,15 @@
+task:
+  name: "AUTH Compliance & Data Privacy"
+  repo_path: "feature-auth/tasks_bootstrap"
+  goal: |
+    Deliver the GDPR and privacy features specified in the architecture. Implement data export and deletion flows, email
+    erasure handling, marketing consent tracking, and audit-friendly storage of CAPTCHA receipts without PII. Ensure policies
+    and user-facing controls fulfill the compliance expectations across backend workflows and supporting documentation.
+  context:
+    spec_file: "docs/architecture/AUTH_PLATFORM.md"
+  outputs:
+    - backend/
+    - frontend/
+    - docs/
+    - tests/
+  tests: true

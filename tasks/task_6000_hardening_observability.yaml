@@ -1,0 +1,15 @@
+task:
+  name: "AUTH Security Hardening & Observability"
+  repo_path: "feature-auth/tasks_bootstrap"
+  goal: |
+    Execute the security posture and observability initiatives in the spec. Apply Argon2id parameters, JWT key rotation,
+    session binding, progressive lockouts, secrets management, CSP/HSTS policies, and rate limiting guardrails. Instrument
+    Prometheus metrics, OpenTelemetry tracing, alerting for auth anomalies, and author runbooks for email and CAPTCHA outages,
+    ensuring the platform meets the documented hardening requirements.
+  context:
+    spec_file: "docs/architecture/AUTH_PLATFORM.md"
+  outputs:
+    - backend/
+    - tests/
+    - docs/
+  tests: true

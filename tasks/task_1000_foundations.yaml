@@ -1,0 +1,15 @@
+task:
+  name: "AUTH Platform Foundations"
+  repo_path: "feature-auth/tasks_bootstrap"
+  goal: |
+    Implement the core platform foundations described in the AUTH platform architecture. Stand up the PostgreSQL schema,
+    Redis caches, and supporting messaging infrastructure that power authentication services. Integrate Argon2id password
+    hashing, JWT signing/rotation, rate limiting, CAPTCHA receipt storage, and initial Alembic migrations for users,
+    sessions, verification tokens, plans, roles, and audit logs to align with the documented data model and service layout.
+  context:
+    spec_file: "docs/architecture/AUTH_PLATFORM.md"
+  outputs:
+    - backend/
+    - alembic/
+    - tests/
+  tests: true

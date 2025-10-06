@@ -1,0 +1,16 @@
+task:
+  name: "AUTH Plans & Limits"
+  repo_path: "feature-auth/tasks_bootstrap"
+  goal: |
+    Build the billing plans and usage limits capabilities from the architecture. Implement plan catalog endpoints, per-user
+    subscriptions, spend caps with hard-stop enforcement, and billing admin defaults. Create the frontend account billing
+    and limits pages with plan comparison, usage forecasting, cap management, and hard-stop toggle behaviors tied to backend
+    enforcement hooks and messaging.
+  context:
+    spec_file: "docs/architecture/AUTH_PLATFORM.md"
+  outputs:
+    - backend/
+    - frontend/
+    - alembic/
+    - tests/
+  tests: true
