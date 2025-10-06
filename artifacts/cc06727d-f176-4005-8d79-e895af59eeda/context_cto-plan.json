@@ -1,0 +1,26 @@
+{
+  "job_id": "cc06727d-f176-4005-8d79-e895af59eeda",
+  "step_id": null,
+  "role": "cto-plan",
+  "tokens_final": 174,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "task",
+      "source": "task",
+      "score": 7.599999824520586,
+      "tokens": 17,
+      "metadata": {}
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[task score=7.60] create math function to calculate the faculty of a given number (!x)"
+  ]
+}

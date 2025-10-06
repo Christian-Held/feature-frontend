@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
 from app.core.logging import configure_logging, get_logger
@@ -16,7 +17,16 @@ logger = get_logger(__name__)
 def create_application() -> FastAPI:
     app_settings = get_settings()
     configure_logging(app_settings.log_level)
-    app = FastAPI(title="Auto Dev Orchestrator", version="0.1.0")
+    app = FastAPI(title="Auto Dev Orchestrator", version="0.1.0", redirect_slashes=True)
+
+    # Add CORS middleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     @app.on_event("startup")
     async def startup_event() -> None:

@@ -1,0 +1,26 @@
+{
+  "job_id": "13ad2a18-4125-4468-bbca-422a9ff34d7b",
+  "step_id": null,
+  "role": "cto-plan",
+  "tokens_final": 149,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "task",
+      "source": "task",
+      "score": 3.4000000000000004,
+      "tokens": 8,
+      "metadata": {}
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[task score=3.40] create fibunacci function and tests"
+  ]
+}

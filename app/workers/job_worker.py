@@ -215,10 +215,11 @@ def execute_job(self, job_id: str):
             repo_path = Path("./data/dry-run") / job_id
             repo_path.mkdir(parents=True, exist_ok=True)
             repo_instance = None
+            actual_base_branch = job_branch_base
         else:
-            repo_path = repo_ops.clone_or_update_repo(job_repo_owner, job_repo_name, job_branch_base)
+            repo_path, actual_base_branch = repo_ops.clone_or_update_repo(job_repo_owner, job_repo_name, job_branch_base)
             repo_instance = repo_ops.Repo(repo_path)
-            repo_ops.create_branch(repo_instance, feature_branch, job_branch_base)
+            repo_ops.create_branch(repo_instance, feature_branch, actual_base_branch)
         for step in plan:
             with session_scope() as session:
                 job = repo.get_job(session, job_id)
@@ -281,26 +282,31 @@ def execute_job(self, job_id: str):
                     repo.update_step(session, step_model, status="completed", details=summary)
                 session.commit()
         if not settings.dry_run and repo_instance is not None:
+            # Load job attributes before session closes
             with session_scope() as session:
                 job = repo.get_job(session, job_id)
                 agents_hash_diff = (
                     f"{job.agents_hash} -> {spec.digest}" if job and job.agents_hash != spec.digest else "unchanged"
                 )
+                # Extract values we need after session closes
+                job_id_value = job.id
+                job_id_short = job.id[:8]
+
             repo_ops.push_branch(repo_instance, feature_branch)
             context_report = _format_context_report(last_context_diag)
             pr_body = (
-                f"Job {job.id} completed.\n"
+                f"Job {job_id_value} completed.\n"
                 f"Agents hash current: {spec.digest}\n"
                 f"Agents hash diff: {agents_hash_diff}\n"
                 f"Merge strategy: {settings.merge_conflict_behavior}\n\n"
                 f"{context_report}"
             )
             pr_url = repo_ops.open_pull_request(
-                job_id=job.id,
-                title=f"AutoDev Orchestrator Update {job.id[:8]}",
+                job_id=job_id_value,
+                title=f"AutoDev Orchestrator Update {job_id_short}",
                 body=pr_body,
                 head=feature_branch,
-                base=job_branch_base,
+                base=actual_base_branch,
             )
             with session_scope() as session:
                 job = repo.get_job(session, job_id)

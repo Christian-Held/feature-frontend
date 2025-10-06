@@ -1,0 +1,128 @@
+{
+  "job_id": "fa6bc0c6-d7d8-4ad8-816a-bdce14579393",
+  "step_id": "3915bb61-3c7a-4f6f-b6fc-bf43e51cf803",
+  "role": "coder-step",
+  "tokens_final": 4651,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "artifact::context_106c1eca-bc49-4a68-9743-e386d7b4f59e.json",
+      "source": "artifact",
+      "score": 30.174834005938415,
+      "tokens": 952,
+      "metadata": {
+        "path": "artifacts/fa6bc0c6-d7d8-4ad8-816a-bdce14579393/context_106c1eca-bc49-4a68-9743-e386d7b4f59e.json"
+      }
+    },
+    {
+      "id": "artifact::context_9985328e-368d-42f0-a4eb-4b589dfc93a8.json",
+      "source": "artifact",
+      "score": 30.001774929397314,
+      "tokens": 691,
+      "metadata": {
+        "path": "artifacts/fa6bc0c6-d7d8-4ad8-816a-bdce14579393/context_9985328e-368d-42f0-a4eb-4b589dfc93a8.json"
+      }
+    },
+    {
+      "id": "artifact::context_e202af19-c63e-45dd-b86d-c98968934948.json",
+      "source": "artifact",
+      "score": 29.65727821646805,
+      "tokens": 1148,
+      "metadata": {
+        "path": "artifacts/fa6bc0c6-d7d8-4ad8-816a-bdce14579393/context_e202af19-c63e-45dd-b86d-c98968934948.json"
+      }
+    },
+    {
+      "id": "history::b19a8812-2d72-4a83-9bf8-5e97e946078c",
+      "source": "history",
+      "score": 26.925291997107653,
+      "tokens": 276,
+      "metadata": {
+        "role": "cto-plan",
+        "step_id": null
+      }
+    },
+    {
+      "id": "step",
+      "source": "step",
+      "score": 17.74688030132295,
+      "tokens": 76,
+      "metadata": {}
+    },
+    {
+      "id": "task",
+      "source": "task",
+      "score": 12.337704251023649,
+      "tokens": 21,
+      "metadata": {}
+    },
+    {
+      "id": "artifact::context_cto-plan.json",
+      "source": "artifact",
+      "score": 10.31697151606119,
+      "tokens": 146,
+      "metadata": {
+        "path": "artifacts/fa6bc0c6-d7d8-4ad8-816a-bdce14579393/context_cto-plan.json"
+      }
+    },
+    {
+      "id": "history::ab34994f-6a8a-4c1d-b10c-2d8c436256b8",
+      "source": "history",
+      "score": 2.6561328452446364,
+      "tokens": 33,
+      "metadata": {
+        "role": "coder-step",
+        "step_id": "9985328e-368d-42f0-a4eb-4b589dfc93a8"
+      }
+    },
+    {
+      "id": "history::6751af7f-229a-4f78-bffd-35fd6a1d7163",
+      "source": "history",
+      "score": 2.6561224277960243,
+      "tokens": 33,
+      "metadata": {
+        "role": "coder-step",
+        "step_id": "106c1eca-bc49-4a68-9743-e386d7b4f59e"
+      }
+    },
+    {
+      "id": "history::a4459d60-0976-45ed-9e96-b9c4f927bea3",
+      "source": "history",
+      "score": 2.656106319328483,
+      "tokens": 33,
+      "metadata": {
+        "role": "coder-step",
+        "step_id": "e202af19-c63e-45dd-b86d-c98968934948"
+      }
+    },
+    {
+      "id": "repo::main.cpp::0",
+      "source": "repo",
+      "score": 0.15741994214692312,
+      "tokens": 2,
+      "metadata": {
+        "path": "main.cpp"
+      }
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[artifact score=30.17] context_106c1eca-bc49-4a68-9743-e386d7b4f59e.json: { \"job_id\": \"fa6bc0c6-d7d8-4ad8-816a-bdce14579393\",",
+    "[artifact score=30.00] context_9985328e-368d-42f0-a4eb-4b589dfc93a8.json: { \"job_id\": \"fa6bc0c6-d7d8-4ad8-816a-bdce14579393\",",
+    "[artifact score=29.66] context_e202af19-c63e-45dd-b86d-c98968934948.json: { \"job_id\": \"fa6bc0c6-d7d8-4ad8-816a-bdce14579393\",",
+    "[history score=26.93] [{\"title\": \"Create a new C++ source file\", \"rationale\": \"We need a new source file to write the hello world program in C++.\", \"acceptance\": \"A C++ source file named main.cpp is created.\", \"files\": [\"main.cpp\"], \"commands\": []}, {\"title\": \"Write C++ code to print 'hello noob world'\", \"rationale\": \"Implement a simple main function that prints the required phrase to the console.\", \"acceptance\": \"The main.cpp file contains a main function that outputs 'hello noob world' to std::cout and returns 0.\", \"files\": [\"main.cpp\"], \"commands\": []}, {\"title\": \"Compile the program\", \"rationale\": \"Compilation verifies correctness of the C++ code and generates an executable.\", \"acceptance\": \"The program compiles without errors using a command such as g++ -o hello main.cpp.\", \"files\": [\"main.cpp\"], \"commands\": [\"g++ -o hello main.cpp\"]}, {\"title\": \"Run the program and verify output\", \"rationale\": \"Running the executable ensures the program prints the expected output.\", \"acceptance\": \"Running ./hello prints exactly 'hello noob world' to the console.\", \"files\": [\"main.cpp\", \"hello\"], \"commands\": [\"./hello\"]}]",
+    "[step score=17.75] { \"title\": \"Run the program and verify output\", \"rationale\": \"Running the executable ensures the program prints the expected output.\",",
+    "[task score=12.34] create a simple hello  world program that prints \"hello noob world\" in c++ on console",
+    "[artifact score=10.32] context_cto-plan.json: { \"job_id\": \"fa6bc0c6-d7d8-4ad8-816a-bdce14579393\",",
+    "[history score=2.66] Model output: --- main.cpp::FULL +++ main.cpp::FULL @@",
+    "[history score=2.66] Model output: --- main.cpp::FULL +++ main.cpp::FULL @@",
+    "[history score=2.66] Model output: --- main.cpp::FULL +++ main.cpp::FULL @@",
+    "[repo score=0.16] main.cpp:"
+  ]
+}

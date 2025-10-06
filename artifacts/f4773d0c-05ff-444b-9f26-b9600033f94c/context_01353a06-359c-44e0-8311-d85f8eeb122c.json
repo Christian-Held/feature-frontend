@@ -1,0 +1,55 @@
+{
+  "job_id": "f4773d0c-05ff-444b-9f26-b9600033f94c",
+  "step_id": "01353a06-359c-44e0-8311-d85f8eeb122c",
+  "role": "coder-step",
+  "tokens_final": 993,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "history::005e7080-4a63-4d98-94bf-da58afe6397e",
+      "source": "history",
+      "score": 51.8036698420189,
+      "tokens": 133,
+      "metadata": {
+        "role": "cto-plan",
+        "step_id": null
+      }
+    },
+    {
+      "id": "step",
+      "source": "step",
+      "score": 51.795534276681416,
+      "tokens": 139,
+      "metadata": {}
+    },
+    {
+      "id": "artifact::context_cto-plan.json",
+      "source": "artifact",
+      "score": 8.925627590781133,
+      "tokens": 132,
+      "metadata": {
+        "path": "artifacts/f4773d0c-05ff-444b-9f26-b9600033f94c/context_cto-plan.json"
+      }
+    },
+    {
+      "id": "task",
+      "source": "task",
+      "score": 8.720162130217014,
+      "tokens": 8,
+      "metadata": {}
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[history score=51.80] [{\"title\": \"Implement Fibonacci method in C++\", \"rationale\": \"To generate Fibonacci numbers using C++, a method that computes the Fibonacci sequence is required. This is a basic algorithmic problem to ensure familiarity with function creation and recursion or iteration in C++.\", \"acceptance\": \"The method should accept an integer n and return the nth Fibonacci number correctly for n >= 0, with test cases showing correct output for at least n = 0, 1, 5, and 10.\", \"files\": [\"fib.cpp\"], \"commands\": [\"g++ fib.cpp -o fib && ./fib\"]}]",
+    "[step score=51.80] { \"title\": \"Implement Fibonacci method in C++\", \"rationale\": \"To generate Fibonacci numbers using C++, a method that computes the Fibonacci sequence is required. This is a basic algorithmic problem to ensure familiarity with function creation and recursion or iteration in C++.\",",
+    "[artifact score=8.93] context_cto-plan.json: { \"job_id\": \"f4773d0c-05ff-444b-9f26-b9600033f94c\",",
+    "[task score=8.72] create a fibunacci method in c++"
+  ]
+}

@@ -11,7 +11,7 @@ from app.core.logging import get_logger
 
 router = APIRouter(prefix="/api/files", tags=["files"])
 logger = get_logger(__name__)
-_ROOT = Path("./data")
+_ROOT = Path("./data").resolve()
 _ROOT.mkdir(parents=True, exist_ok=True)
 
 
@@ -26,8 +26,9 @@ class FileEntry(BaseModel):
 def _resolve_path(path: str) -> Path:
     safe_path = path.strip("/")
     target = (_ROOT / safe_path).resolve()
-    root = _ROOT.resolve()
-    if not str(target).startswith(str(root)):
+    try:
+        target.relative_to(_ROOT)
+    except ValueError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid path")
     return target
 

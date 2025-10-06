@@ -146,7 +146,7 @@ export class ApiClient {
   }
 
   listJobs() {
-    return this.request<Job[]>('/jobs');
+    return this.request<Job[]>('/jobs/');
   }
 
   createTask(body: CreateTaskRequest) {

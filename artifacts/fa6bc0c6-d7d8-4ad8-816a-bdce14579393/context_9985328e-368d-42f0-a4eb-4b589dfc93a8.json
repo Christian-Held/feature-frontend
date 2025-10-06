@@ -1,0 +1,55 @@
+{
+  "job_id": "fa6bc0c6-d7d8-4ad8-816a-bdce14579393",
+  "step_id": "9985328e-368d-42f0-a4eb-4b589dfc93a8",
+  "role": "coder-step",
+  "tokens_final": 1168,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "history::b19a8812-2d72-4a83-9bf8-5e97e946078c",
+      "source": "history",
+      "score": 29.959791787352767,
+      "tokens": 276,
+      "metadata": {
+        "role": "cto-plan",
+        "step_id": null
+      }
+    },
+    {
+      "id": "step",
+      "source": "step",
+      "score": 21.993306977226062,
+      "tokens": 61,
+      "metadata": {}
+    },
+    {
+      "id": "task",
+      "source": "task",
+      "score": 15.334222607175013,
+      "tokens": 21,
+      "metadata": {}
+    },
+    {
+      "id": "artifact::context_cto-plan.json",
+      "source": "artifact",
+      "score": 13.317961396076562,
+      "tokens": 146,
+      "metadata": {
+        "path": "artifacts/fa6bc0c6-d7d8-4ad8-816a-bdce14579393/context_cto-plan.json"
+      }
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[history score=29.96] [{\"title\": \"Create a new C++ source file\", \"rationale\": \"We need a new source file to write the hello world program in C++.\", \"acceptance\": \"A C++ source file named main.cpp is created.\", \"files\": [\"main.cpp\"], \"commands\": []}, {\"title\": \"Write C++ code to print 'hello noob world'\", \"rationale\": \"Implement a simple main function that prints the required phrase to the console.\", \"acceptance\": \"The main.cpp file contains a main function that outputs 'hello noob world' to std::cout and returns 0.\", \"files\": [\"main.cpp\"], \"commands\": []}, {\"title\": \"Compile the program\", \"rationale\": \"Compilation verifies correctness of the C++ code and generates an executable.\", \"acceptance\": \"The program compiles without errors using a command such as g++ -o hello main.cpp.\", \"files\": [\"main.cpp\"], \"commands\": [\"g++ -o hello main.cpp\"]}, {\"title\": \"Run the program and verify output\", \"rationale\": \"Running the executable ensures the program prints the expected output.\", \"acceptance\": \"Running ./hello prints exactly 'hello noob world' to the console.\", \"files\": [\"main.cpp\", \"hello\"], \"commands\": [\"./hello\"]}]",
+    "[step score=21.99] { \"title\": \"Create a new C++ source file\", \"rationale\": \"We need a new source file to write the hello world program in C++.\",",
+    "[task score=15.33] create a simple hello  world program that prints \"hello noob world\" in c++ on console",
+    "[artifact score=13.32] context_cto-plan.json: { \"job_id\": \"fa6bc0c6-d7d8-4ad8-816a-bdce14579393\","
+  ]
+}

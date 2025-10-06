@@ -41,7 +41,19 @@ class CTOAgent:
                 }
             ], response.tokens_in, response.tokens_out)
         try:
-            plan = json.loads(plan_text)
+            # Strip markdown code fences if present
+            cleaned_text = plan_text.strip()
+            if cleaned_text.startswith("```"):
+                # Remove opening fence (```json or ```)
+                lines = cleaned_text.split('\n')
+                if lines[0].startswith("```"):
+                    lines = lines[1:]
+                # Remove closing fence
+                if lines and lines[-1].strip() == "```":
+                    lines = lines[:-1]
+                cleaned_text = '\n'.join(lines).strip()
+
+            plan = json.loads(cleaned_text)
             if not isinstance(plan, list):
                 raise ValueError("Plan must be a list")
             return plan, response.tokens_in, response.tokens_out

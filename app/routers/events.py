@@ -18,7 +18,15 @@ async def jobs_websocket(websocket: WebSocket) -> None:
             await websocket.send_json({"type": event.type, "payload": event.payload})
     except WebSocketDisconnect:
         logger.info("jobs_ws_disconnected", client=str(websocket.client))
+    except RuntimeError as exc:
+        if "close message has been sent" in str(exc):
+            logger.info("jobs_ws_already_closed", client=str(websocket.client))
+        else:
+            logger.exception("jobs_ws_runtime_error", error=str(exc))
     except Exception as exc:  # pragma: no cover - defensive
         logger.exception("jobs_ws_error", error=str(exc))
     finally:
-        await websocket.close()
+        try:
+            await websocket.close()
+        except RuntimeError:
+            pass

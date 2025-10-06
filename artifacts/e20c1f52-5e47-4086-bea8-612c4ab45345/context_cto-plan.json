@@ -1,0 +1,26 @@
+{
+  "job_id": "e20c1f52-5e47-4086-bea8-612c4ab45345",
+  "step_id": null,
+  "role": "cto-plan",
+  "tokens_final": 130,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "task",
+      "source": "task",
+      "score": 1.6,
+      "tokens": 2,
+      "metadata": {}
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[task score=1.60] Test task"
+  ]
+}
