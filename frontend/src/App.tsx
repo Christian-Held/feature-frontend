@@ -4,6 +4,8 @@ import { DashboardPage } from './pages/DashboardPage'
 import { BillingPage } from './pages/account/BillingPage'
 import { LimitsPage } from './pages/account/LimitsPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { AdminUsersPage } from './pages/admin/AdminUsersPage'
+import { AdminAuditLogsPage } from './pages/admin/AdminAuditLogsPage'
 import { Spinner } from './components/ui/Spinner'
 
 export function App() {
@@ -20,6 +22,8 @@ export function App() {
         <Route path="/account/billing" element={<BillingPage />} />
         <Route path="/account/limits" element={<LimitsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/admin/users" element={<AdminUsersPage />} />
+        <Route path="/admin/audit-logs" element={<AdminAuditLogsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>
