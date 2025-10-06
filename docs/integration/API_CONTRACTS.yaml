@@ -1,0 +1,921 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Auto Dev Orchestrator API",
+    "version": "1.0.0",
+    "description": "Formal API contract f\u00fcr das FastAPI-Backend."
+  },
+  "servers": [
+    {
+      "url": "https://api.auto-dev.local"
+    }
+  ],
+  "paths": {
+    "/health/": {
+      "get": {
+        "summary": "System health",
+        "responses": {
+          "200": {
+            "description": "Service healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service degraded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tasks": {
+      "post": {
+        "summary": "Create orchestration job",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Job enqueued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCreateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{job_id}": {
+      "get": {
+        "summary": "Get job",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job not found"
+          }
+        }
+      }
+    },
+    "/jobs/{job_id}/cancel": {
+      "post": {
+        "summary": "Cancel job",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancellation confirmed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "cancelled"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job not found"
+          }
+        }
+      }
+    },
+    "/jobs/{job_id}/context": {
+      "get": {
+        "summary": "Get latest context diagnostics",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Context metrics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContextDiagnosticsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Context diagnostics not found"
+          }
+        }
+      }
+    },
+    "/context/docs": {
+      "post": {
+        "summary": "Ingest contextual document",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContextDocRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Document stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContextDocResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid document"
+          }
+        }
+      }
+    },
+    "/memory/{job_id}": {
+      "get": {
+        "summary": "Get memory notes and files",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Memory snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/memory/{job_id}/notes": {
+      "post": {
+        "summary": "Create memory note",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemoryNoteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Note stored"
+          },
+          "400": {
+            "description": "Limit exceeded or invalid payload"
+          }
+        }
+      }
+    },
+    "/memory/{job_id}/files": {
+      "post": {
+        "summary": "Upload memory file",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "required": [
+                  "file"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "File stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoryFileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Upload failed"
+          },
+          "503": {
+            "description": "Multipart dependency missing"
+          }
+        }
+      }
+    },
+    "/api/env": {
+      "get": {
+        "summary": "List environment variables",
+        "responses": {
+          "200": {
+            "description": "Variables",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EnvVariable"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/env/{key}": {
+      "put": {
+        "summary": "Update environment variable",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnvUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated variable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvVariable"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown variable"
+          }
+        }
+      }
+    },
+    "/api/models": {
+      "get": {
+        "summary": "List model configurations",
+        "responses": {
+          "200": {
+            "description": "Model configs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ModelConfig"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models/{model_id}": {
+      "put": {
+        "summary": "Update model configuration",
+        "parameters": [
+          {
+            "name": "model_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelConfig"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown model"
+          }
+        }
+      }
+    },
+    "/api/files": {
+      "get": {
+        "summary": "List sandbox files",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "/"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FileEntry"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Path not found"
+          }
+        }
+      }
+    },
+    "/ws/jobs": {
+      "get": {
+        "summary": "WebSocket handshake for job events",
+        "description": "Clients m\u00fcssen nach erfolgreichem HTTP-Handshake auf WebSocket upgraden und erhalten JSON-Events vom Typ job.*.",
+        "responses": {
+          "101": {
+            "description": "Switching protocols"
+          }
+        }
+      },
+      "x-kind": "websocket"
+    },
+    "/jobs/": {
+      "get": {
+        "summary": "List jobs",
+        "responses": {
+          "200": {
+            "description": "List of jobs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/JobResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "db": {
+            "type": "boolean"
+          },
+          "redis": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "string"
+          },
+          "budgetGuard": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "service": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "TaskCreateRequest": {
+        "type": "object",
+        "required": [
+          "task",
+          "repo_owner",
+          "repo_name",
+          "branch_base",
+          "budgetUsd",
+          "maxRequests",
+          "maxMinutes"
+        ],
+        "properties": {
+          "task": {
+            "type": "string"
+          },
+          "repo_owner": {
+            "type": "string"
+          },
+          "repo_name": {
+            "type": "string"
+          },
+          "branch_base": {
+            "type": "string"
+          },
+          "budgetUsd": {
+            "type": "number",
+            "minimum": 0
+          },
+          "maxRequests": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "maxMinutes": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "modelCTO": {
+            "type": "string",
+            "nullable": true
+          },
+          "modelCoder": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "TaskCreateResponse": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id"
+        ]
+      },
+      "JobStepResponse": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "details": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "JobResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "task": {
+            "type": "string"
+          },
+          "repo_owner": {
+            "type": "string"
+          },
+          "repo_name": {
+            "type": "string"
+          },
+          "branch_base": {
+            "type": "string"
+          },
+          "budget_usd": {
+            "type": "number"
+          },
+          "max_requests": {
+            "type": "integer"
+          },
+          "max_minutes": {
+            "type": "integer"
+          },
+          "cost_usd": {
+            "type": "number"
+          },
+          "tokens_in": {
+            "type": "integer"
+          },
+          "tokens_out": {
+            "type": "integer"
+          },
+          "requests_made": {
+            "type": "integer"
+          },
+          "progress": {
+            "type": "number"
+          },
+          "last_action": {
+            "type": "string",
+            "nullable": true
+          },
+          "pr_links": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "model_cto": {
+            "type": "string",
+            "nullable": true
+          },
+          "model_coder": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "ContextDiagnosticsResponse": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "step_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "tokens_final": {
+            "type": "integer"
+          },
+          "tokens_clipped": {
+            "type": "integer"
+          },
+          "compact_ops": {
+            "type": "integer"
+          },
+          "budget": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "dropped": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "hints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ContextDocRequest": {
+        "type": "object",
+        "required": [
+          "title",
+          "text"
+        ],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "ContextDocResponse": {
+        "type": "object",
+        "properties": {
+          "ref_id": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string",
+            "example": "doc"
+          }
+        }
+      },
+      "MemoryResponse": {
+        "type": "object",
+        "properties": {
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "MemoryNoteRequest": {
+        "type": "object",
+        "required": [
+          "type",
+          "title",
+          "body"
+        ],
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "stepId": {
+            "type": "string"
+          }
+        }
+      },
+      "MemoryFileResponse": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "bytes": {
+            "type": "integer"
+          }
+        }
+      },
+      "EnvVariable": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "is_secret": {
+            "type": "boolean"
+          }
+        }
+      },
+      "EnvUpdateRequest": {
+        "type": "object",
+        "required": [
+          "value"
+        ],
+        "properties": {
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "ModelVariant": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "ModelConfig": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "variants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelVariant"
+            }
+          },
+          "selectedVariant": {
+            "type": "string",
+            "nullable": true
+          },
+          "parameters": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ModelUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "selectedVariant": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "FileEntry": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "file",
+              "directory"
+            ]
+          },
+          "size": {
+            "type": "integer"
+          },
+          "modifiedAt": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
