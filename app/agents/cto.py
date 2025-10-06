@@ -20,7 +20,7 @@ class CTOAgent:
 
     async def create_plan(
         self, task: str, *, messages: List[Dict[str, str]] | None = None
-    ) -> tuple[List[Dict[str, str]], int, int]:
+    ) -> tuple[List[Dict[str, str]], int, int, str]:
         if messages is None:
             context = f"Task: {task}"
             section = self.spec.section("CTO-AI")
@@ -39,12 +39,12 @@ class CTOAgent:
                     "files": [],
                     "commands": [],
                 }
-            ], response.tokens_in, response.tokens_out)
+            ], response.tokens_in, response.tokens_out, plan_text)
         try:
             plan = json.loads(plan_text)
             if not isinstance(plan, list):
                 raise ValueError("Plan must be a list")
-            return plan, response.tokens_in, response.tokens_out
+            return plan, response.tokens_in, response.tokens_out, plan_text
         except json.JSONDecodeError as exc:
             logger.error("cto_plan_parse_error", error=str(exc), response=plan_text)
             raise

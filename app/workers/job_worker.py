@@ -14,6 +14,7 @@ from app.context.engine import ContextEngine
 from app.core.config import get_settings
 from app.core.diffs import apply_unified_diff, safe_write
 from app.core.logging import get_logger
+from app.core.llm_logging import LLMTranscriptRecorder
 from app.core.pricing import get_pricing_table
 from app.db import repo
 from app.db.engine import session_scope
@@ -142,6 +143,7 @@ def execute_job(self, job_id: str):
     spec = parse_agents_file()
     provider_cto = _select_provider(settings.dry_run)
     provider_coder = _select_provider(settings.dry_run)
+    transcript_recorder = LLMTranscriptRecorder()
     last_context_diag: Optional[Dict[str, Any]] = None
     try:
         with session_scope() as session:
@@ -175,8 +177,22 @@ def execute_job(self, job_id: str):
         )
         if context_diag:
             last_context_diag = context_diag
-        plan, plan_tokens_in, plan_tokens_out = _run_coro(
+        plan, plan_tokens_in, plan_tokens_out, plan_text = _run_coro(
             cto_agent.create_plan(job_task, messages=plan_messages)
+        )
+        transcript_recorder.record(
+            {
+                "job_id": job_id,
+                "step_id": None,
+                "provider": provider_cto.name,
+                "model": model_cto,
+                "role": "cto-plan",
+                "messages": plan_messages,
+                "response_text": plan_text,
+                "response": plan,
+                "tokens_in": plan_tokens_in,
+                "tokens_out": plan_tokens_out,
+            }
         )
         with session_scope() as session:
             job = repo.get_job(session, job_id)
@@ -215,10 +231,12 @@ def execute_job(self, job_id: str):
             repo_path = Path("./data/dry-run") / job_id
             repo_path.mkdir(parents=True, exist_ok=True)
             repo_instance = None
+            transcript_recorder.set_base_path(repo_path)
         else:
             repo_path = repo_ops.clone_or_update_repo(job_repo_owner, job_repo_name, job_branch_base)
             repo_instance = repo_ops.Repo(repo_path)
             repo_ops.create_branch(repo_instance, feature_branch, job_branch_base)
+            transcript_recorder.set_base_path(repo_path)
         for step in plan:
             with session_scope() as session:
                 job = repo.get_job(session, job_id)
@@ -246,14 +264,29 @@ def execute_job(self, job_id: str):
             result = _run_coro(coder_agent.implement_step(job_task, step, messages=messages))
             diff_text = result.get("diff", "")
             summary = result.get("summary", "")
+            tokens_in = int(result.get("tokens_in", 0) or 0)
+            tokens_out = int(result.get("tokens_out", 0) or 0)
+            transcript_recorder.record(
+                {
+                    "job_id": job_id,
+                    "step_id": step_id,
+                    "provider": provider_coder.name,
+                    "model": model_coder,
+                    "role": "coder-step",
+                    "step_title": step.get("title"),
+                    "messages": messages,
+                    "response_text": diff_text,
+                    "summary": summary,
+                    "tokens_in": tokens_in,
+                    "tokens_out": tokens_out,
+                }
+            )
             if diff_text:
                 _apply_diff(Path(repo_path), diff_text)
                 if repo_instance is not None:
                     repo_ops.commit_all(repo_instance, f"{step.get('title', 'Step')}\n\n{summary}")
             with session_scope() as session:
                 job = repo.get_job(session, job_id)
-                tokens_in = int(result.get("tokens_in", 0) or 0)
-                tokens_out = int(result.get("tokens_out", 0) or 0)
                 model_name = model_coder
                 if tokens_in or tokens_out:
                     cost = _calculate_cost(model_name, tokens_in, tokens_out)
