@@ -55,3 +55,37 @@ def test_apply_unified_diff_with_minimal_hunk_header(tmp_path):
     for path, content in apply_unified_diff(tmp_path, diff):
         safe_write(path, content)
     assert file_path.read_text(encoding="utf-8") == updated
+
+
+def test_apply_unified_diff_full_marker_without_hunks(tmp_path):
+    file_path = tmp_path / "module.py"
+    diff = """--- a/module.py::FULL
++++ b/module.py::FULL
++def greet():
++    return 'hello'
+"""
+    results = list(apply_unified_diff(tmp_path, diff))
+    assert results == [
+        (file_path, "def greet():\n    return 'hello'\n"),
+    ]
+    for path, content in results:
+        safe_write(path, content)
+    assert file_path.read_text(encoding="utf-8") == "def greet():\n    return 'hello'\n"
+
+
+def test_apply_unified_diff_full_marker_invalid_hunk(tmp_path):
+    original = "line one\nline two\n"
+    file_path = tmp_path / "sample.txt"
+    file_path.write_text(original, encoding="utf-8")
+    diff = """--- a/sample.txt::FULL
++++ b/sample.txt::FULL
+@@ invalid hunk
++replacement line
+"""
+    results = list(apply_unified_diff(tmp_path, diff))
+    assert results == [
+        (file_path, "replacement line\n"),
+    ]
+    for path, content in results:
+        safe_write(path, content)
+    assert file_path.read_text(encoding="utf-8") == "replacement line\n"
