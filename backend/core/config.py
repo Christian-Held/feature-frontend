@@ -40,6 +40,21 @@ class AppConfig(BaseSettings):
     argon2_parallelism: int = Field(default=4, validation_alias="ARGON2_PARALLELISM")
     argon2_hash_len: int = Field(default=32, validation_alias="ARGON2_HASH_LEN")
 
+    turnstile_secret_key: str = Field(validation_alias="TURNSTILE_SECRET_KEY")
+    turnstile_verify_url: str = Field(
+        default="https://challenges.cloudflare.com/turnstile/v0/siteverify",
+        validation_alias="TURNSTILE_VERIFY_URL",
+    )
+
+    celery_broker_url: str = Field(validation_alias="CELERY_BROKER_URL")
+    celery_result_backend: str | None = Field(default=None, validation_alias="CELERY_RESULT_BACKEND")
+
+    email_from_address: str = Field(validation_alias="EMAIL_FROM_ADDRESS")
+    email_from_name: str = Field(default="Feature Auth", validation_alias="EMAIL_FROM_NAME")
+    frontend_base_url: str = Field(validation_alias="FRONTEND_BASE_URL")
+    api_base_url: str = Field(validation_alias="API_BASE_URL")
+    email_verification_secret: str = Field(validation_alias="EMAIL_VERIFICATION_SECRET")
+
     log_level: str = Field(default="INFO", validation_alias="LOG_LEVEL")
     log_redact_fields: List[str] = Field(default_factory=lambda: ["password", "token", "secret"], validation_alias="LOG_REDACT_FIELDS")
 
