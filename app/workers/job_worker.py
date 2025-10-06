@@ -67,10 +67,15 @@ def _run_coro(coro):
         error_holder: dict[str, BaseException] = {}
 
         def runner() -> None:
+            new_loop = asyncio.new_event_loop()
             try:
-                result_holder["value"] = asyncio.run(coro)
+                asyncio.set_event_loop(new_loop)
+                result_holder["value"] = new_loop.run_until_complete(coro)
             except BaseException as exc:  # pragma: no cover
                 error_holder["error"] = exc
+            finally:
+                new_loop.close()
+                asyncio.set_event_loop(None)
 
         thread = threading.Thread(target=runner, daemon=True)
         thread.start()

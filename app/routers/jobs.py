@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -65,6 +65,11 @@ def list_jobs(session: Session = Depends(deps.get_db)) -> List[JobResponse]:
     return [JobResponse.model_validate(serialize_job(job)) for job in jobs]
 
 
+@router.get("", response_model=List[JobResponse], include_in_schema=False)
+def list_jobs_no_slash(session: Session = Depends(deps.get_db)) -> List[JobResponse]:
+    return list_jobs(session)
+
+
 @router.get("/{job_id}", response_model=JobResponse)
 def get_job(job_id: str, session: Session = Depends(deps.get_db)) -> JobResponse:
     job = repo.get_job(session, job_id)
@@ -101,3 +106,9 @@ def get_job_context(job_id: str, session: Session = Depends(deps.get_db)) -> Con
         dropped=details.get("dropped", []),
         hints=details.get("hints", []),
     )
+
+
+@router.options("/", include_in_schema=False)
+@router.options("", include_in_schema=False)
+def jobs_options() -> Response:
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
