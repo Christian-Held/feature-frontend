@@ -53,6 +53,28 @@ def apply_unified_diff(base_path: Path, diff_text: str) -> Iterable[Tuple[Path, 
             i += 1
             while i < len(lines) and lines[i].startswith("@@"):
                 header = lines[i]
+                stripped_header = header.strip()
+                if stripped_header == "@@":
+                    logger.warning(
+                        "diff_header_missing_ranges",
+                        header=header,
+                        path=str(target_path),
+                    )
+                    rebuilt = []
+                    cursor = len(source_lines)
+                    i += 1
+                    fallback_lines: list[str] = []
+                    while i < len(lines) and not lines[i].startswith("@@") and not lines[i].startswith("--- "):
+                        hunk_line = lines[i]
+                        if hunk_line.startswith("+") or hunk_line.startswith(" "):
+                            fallback_lines.append(hunk_line[1:])
+                        elif hunk_line.startswith("-"):
+                            pass
+                        else:
+                            logger.warning("unknown_diff_line", line=hunk_line)
+                        i += 1
+                    rebuilt = fallback_lines
+                    continue
                 match = HUNK_RE.match(header)
                 if not match:
                     raise ValueError(f"Invalid hunk header: {header}")
