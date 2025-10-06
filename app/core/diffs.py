@@ -9,7 +9,9 @@ from .logging import get_logger
 
 logger = get_logger(__name__)
 
-HUNK_RE = re.compile(r"@@ -(?P<old_start>\d+)(?:,(?P<old_len>\d+))? \+(?P<new_start>\d+)(?:,(?P<new_len>\d+))? @@")
+HUNK_RE = re.compile(
+    r"@@\s*-(?P<old_start>\d+)(?:,(?P<old_len>\d+))?\s+\+(?P<new_start>\d+)(?:,(?P<new_len>\d+))?\s*@@.*"
+)
 
 
 def generate_unified_diff(original: str, updated: str, filename: str) -> str:
@@ -49,7 +51,7 @@ def apply_unified_diff(base_path: Path, diff_text: str) -> Iterable[Tuple[Path, 
             rebuilt: list[str] = []
             cursor = 0
             i += 1
-            while i < len(lines) and lines[i].startswith("@@ "):
+            while i < len(lines) and lines[i].startswith("@@"):
                 header = lines[i]
                 match = HUNK_RE.match(header)
                 if not match:
@@ -60,7 +62,7 @@ def apply_unified_diff(base_path: Path, diff_text: str) -> Iterable[Tuple[Path, 
                 rebuilt.extend(source_lines[cursor:old_start])
                 cursor = old_start
                 i += 1
-                while i < len(lines) and not lines[i].startswith("@@ ") and not lines[i].startswith("--- "):
+                while i < len(lines) and not lines[i].startswith("@@") and not lines[i].startswith("--- "):
                     hunk_line = lines[i]
                     if hunk_line.startswith(" "):
                         if cursor < len(source_lines):
