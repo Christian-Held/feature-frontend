@@ -53,8 +53,16 @@ def _check_limits(job, *, now: datetime) -> None:
 
 
 def _apply_diff(repo_path: Path, diff_text: str) -> None:
-    for file_path, content in apply_unified_diff(repo_path, diff_text):
+    applied = list(apply_unified_diff(repo_path, diff_text))
+    for file_path, content in applied:
         safe_write(file_path, content)
+    if applied:
+        logger.info(
+            "diff_batch_applied",
+            repo_path=str(repo_path),
+            file_count=len(applied),
+            paths=[str(path) for path, _ in applied],
+        )
 
 
 def _run_coro(coro):
