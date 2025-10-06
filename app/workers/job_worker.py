@@ -319,23 +319,30 @@ def execute_job(self, job_id: str):
                     repo.update_step(session, step_model, status="completed", details=summary)
                 session.commit()
         if not settings.dry_run and repo_instance is not None:
+            job_for_pr_id = job_id
+            job_agents_hash: str | None = None
+            job_found = False
             with session_scope() as session:
                 job = repo.get_job(session, job_id)
-                agents_hash_diff = (
-                    f"{job.agents_hash} -> {spec.digest}" if job and job.agents_hash != spec.digest else "unchanged"
-                )
+                if job:
+                    job_found = True
+                    job_for_pr_id = job.id
+                    job_agents_hash = job.agents_hash
+            agents_hash_diff = (
+                f"{job_agents_hash} -> {spec.digest}" if job_found and job_agents_hash != spec.digest else "unchanged"
+            )
             repo_ops.push_branch(repo_instance, feature_branch)
             context_report = _format_context_report(last_context_diag)
             pr_body = (
-                f"Job {job.id} completed.\n"
+                f"Job {job_for_pr_id} completed.\n"
                 f"Agents hash current: {spec.digest}\n"
                 f"Agents hash diff: {agents_hash_diff}\n"
                 f"Merge strategy: {settings.merge_conflict_behavior}\n\n"
                 f"{context_report}"
             )
             pr_url = repo_ops.open_pull_request(
-                job_id=job.id,
-                title=f"AutoDev Orchestrator Update {job.id[:8]}",
+                job_id=job_for_pr_id,
+                title=f"AutoDev Orchestrator Update {job_for_pr_id[:8]}",
                 body=pr_body,
                 head=feature_branch,
                 base=job_branch_base,
