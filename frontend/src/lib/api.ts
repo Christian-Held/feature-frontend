@@ -157,6 +157,16 @@ export class ApiClient {
       .then((response) => this.getJob(response.job_id));
   }
 
+  listBranches(owner: string, repo: string) {
+    const params = new URLSearchParams({
+      owner,
+      repo,
+    });
+    return this.request<{ branches: string[] }>(
+      `/api/github/branches?${params.toString()}`,
+    );
+  }
+
   getJob(jobId: string) {
     return this.request<Job>(`/jobs/${encodeURIComponent(jobId)}`);
   }
