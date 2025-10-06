@@ -28,30 +28,82 @@ def clone_or_update_repo(owner: str, repo_name: str, branch: str, *, force: bool
     else:
         url = f"https://github.com/{owner}/{repo_name}.git"
         repo = Repo.clone_from(url, target_path)
+
+    stashed = False
+    if repo.is_dirty(untracked_files=True):
+        logger.info("stashing_changes_before_checkout", path=str(target_path))
+        repo.git.stash("save", "autodev-stash-before-checkout")
+        stashed = True
+
+    remote = repo.remotes.origin
+    remote.fetch()
+
+    remote_refs = {
+        getattr(ref, "remote_head", None): ref
+        for ref in remote.refs
+        if getattr(ref, "remote_head", None)
+    }
+
+    default_branch = None
     try:
-        repo.git.checkout(branch)
-    except GitCommandError as exc:
-        remote = repo.remotes.origin
-        remote.fetch()
-        remote_branch = next(
-            (ref for ref in remote.refs if getattr(ref, "remote_head", None) == branch),
-            None,
+        remote_info = repo.git.remote("show", "origin")
+        for line in remote_info.splitlines():
+            line = line.strip()
+            if line.startswith("HEAD branch:"):
+                default_branch = line.split(":", 1)[1].strip()
+                if default_branch == "(unknown)":
+                    default_branch = None
+                break
+    except GitCommandError:
+        default_branch = None
+
+    candidate_branches = []
+    if branch:
+        candidate_branches.append(branch)
+    for fallback in ("main", "master"):
+        if fallback not in candidate_branches:
+            candidate_branches.append(fallback)
+    if default_branch and default_branch not in candidate_branches:
+        candidate_branches.append(default_branch)
+
+    resolved_branch = None
+    for candidate in candidate_branches:
+        if candidate in remote_refs:
+            resolved_branch = candidate
+            break
+        if candidate in repo.heads:
+            resolved_branch = candidate
+            break
+
+    if resolved_branch is None:
+        available = sorted(remote_refs.keys())
+        logger.error(
+            "branch_not_found",
+            branch=branch,
+            available_branches=available,
         )
-        if remote_branch is None:
-            available = sorted(
-                getattr(ref, "remote_head", str(ref)) for ref in remote.refs if getattr(ref, "remote_head", None)
-            )
-            logger.error(
-                "branch_not_found",
-                branch=branch,
-                available_branches=available,
-            )
-            raise ValueError(f"Branch '{branch}' not found in remote repository") from exc
-        try:
-            repo.git.checkout(remote_branch.name)
-            repo.git.checkout("-B", branch)
-        except GitCommandError as checkout_exc:
-            raise ValueError(f"Unable to checkout branch '{branch}'") from checkout_exc
+        raise ValueError(f"Unable to find a suitable branch to checkout from candidates: {candidate_branches}")
+
+    try:
+        if resolved_branch in repo.heads:
+            repo.git.checkout(resolved_branch)
+        elif resolved_branch in remote_refs:
+            repo.git.checkout("-B", resolved_branch, remote_refs[resolved_branch].name)
+        else:
+            repo.git.checkout(resolved_branch)
+        if resolved_branch in remote_refs:
+            repo.git.pull("--ff-only", "origin", resolved_branch)
+    except GitCommandError as exc:
+        raise ValueError(f"Unable to checkout branch '{resolved_branch}'") from exc
+
+    logger.info(
+        "checked_out_branch",
+        requested_branch=branch,
+        resolved_branch=resolved_branch,
+        path=str(target_path),
+    )
+    if stashed:
+        logger.info("stash_created", message="autodev-stash-before-checkout", path=str(target_path))
     return target_path
 
 
