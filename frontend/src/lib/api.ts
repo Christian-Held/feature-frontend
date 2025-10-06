@@ -85,8 +85,41 @@ export interface JobEvent {
   payload: Job;
 }
 
+export interface AccountPlanResponse {
+  plan: 'FREE' | 'PRO';
+  name: string;
+  monthly_price_usd: string;
+}
+
+export interface AccountPlanUpdateRequest {
+  plan: 'FREE' | 'PRO';
+}
+
+export interface AccountLimitsResponse {
+  monthly_cap_usd: string;
+  hard_stop: boolean;
+  usage_usd: string;
+  remaining_usd: string;
+  cap_reached: boolean;
+}
+
+export interface AccountLimitsUpdateRequest {
+  monthly_cap_usd: string | number;
+  hard_stop: boolean;
+}
+
 interface RequestOptions extends RequestInit {
   skipAuth?: boolean;
+}
+
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status = 500) {
+    super(message);
+    this.status = status;
+    this.name = 'ApiError';
+  }
 }
 
 export class ApiClient {
@@ -102,18 +135,40 @@ export class ApiClient {
     };
   }
 
-  private async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${path}`, {
+  private async requestRaw(path: string, options: RequestOptions = {}): Promise<Response> {
+    return fetch(`${this.baseUrl}${path}`, {
       ...options,
       headers: {
         ...this.headers,
         ...options.headers,
       },
     });
+  }
+
+  async requestWithMetadata<T>(path: string, options: RequestOptions = {}): Promise<{ data: T; status: number; warning?: string }>
+  {
+    const response = await this.requestRaw(path, options);
+    const warning = response.headers.get('X-Spend-Warning') ?? undefined;
 
     if (!response.ok) {
       const message = await response.text();
-      throw new Error(message || `Request failed with status ${response.status}`);
+      throw new ApiError(message || `Request failed with status ${response.status}`, response.status);
+    }
+
+    if (response.status === 204) {
+      return { data: undefined as T, status: response.status, warning };
+    }
+
+    const data = (await response.json()) as T;
+    return { data, status: response.status, warning };
+  }
+
+  private async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+    const response = await this.requestRaw(path, options);
+
+    if (!response.ok) {
+      const message = await response.text();
+      throw new ApiError(message || `Request failed with status ${response.status}`, response.status);
     }
 
     if (response.status === 204) {
@@ -153,18 +208,12 @@ export class ApiClient {
     return this.request<{ job_id: string }>('/tasks', {
       method: 'POST',
       body: JSON.stringify(body),
-    })
-      .then((response) => this.getJob(response.job_id));
+    }).then((response) => this.getJob(response.job_id));
   }
 
   listBranches(owner: string, repo: string) {
-    const params = new URLSearchParams({
-      owner,
-      repo,
-    });
-    return this.request<{ branches: string[] }>(
-      `/api/github/branches?${params.toString()}`,
-    );
+    const params = new URLSearchParams({ owner, repo });
+    return this.request<{ branches: string[] }>(`/api/github/branches?${params.toString()}`);
   }
 
   getJob(jobId: string) {
@@ -182,6 +231,28 @@ export class ApiClient {
 
   getHealth() {
     return this.request<HealthResponse>('/health/');
+  }
+
+  getAccountPlan() {
+    return this.requestWithMetadata<AccountPlanResponse>('/v1/account/plan');
+  }
+
+  updateAccountPlan(body: AccountPlanUpdateRequest) {
+    return this.requestWithMetadata<AccountPlanResponse>('/v1/account/plan', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  }
+
+  getAccountLimits() {
+    return this.requestWithMetadata<AccountLimitsResponse>('/v1/account/limits');
+  }
+
+  updateAccountLimits(body: AccountLimitsUpdateRequest) {
+    return this.requestWithMetadata<AccountLimitsResponse>('/v1/account/limits', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
   }
 
   get websocketUrl() {

@@ -5,8 +5,9 @@ from __future__ import annotations
 import enum
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, JSON, Numeric, String, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, JSON, Numeric, String, UniqueConstraint, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -26,7 +27,7 @@ class Plan(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     code: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
-    monthly_price_usd: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False, default=0)
+    monthly_price_usd: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=Decimal("0"))
     metadata_json: Mapped[dict | None] = mapped_column("metadata", JSON, default=None)
 
     subscribers: Mapped[list["UserPlan"]] = relationship("UserPlan", back_populates="plan")
@@ -55,9 +56,20 @@ class SpendLimit(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (UniqueConstraint("user_id", name="uq_spend_limits_user"),)
 
     user_id: Mapped[uuid.UUID] = mapped_column(GUID, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    monthly_cap_usd: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    monthly_cap_usd: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     hard_stop: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
-__all__ = ["Plan", "UserPlan", "SpendLimit", "PlanStatus"]
+class SpendRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """Individual spend records captured for billing."""
+
+    __tablename__ = "spend_records"
+    __table_args__ = (Index("ix_spend_records_user_month", "user_id", "created_at"),)
+
+    user_id: Mapped[uuid.UUID] = mapped_column(GUID, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    amount_usd: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    metadata_json: Mapped[dict | None] = mapped_column("metadata", JSON, default=None)
+
+
+__all__ = ["Plan", "UserPlan", "SpendLimit", "SpendRecord", "PlanStatus"]
 

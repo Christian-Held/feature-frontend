@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import structlog
-import uuid
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from backend.auth.schemas import (
@@ -29,6 +27,7 @@ from backend.auth.schemas import (
     TwoFAVerifyRequest,
     TwoFAVerifyResponse,
 )
+from backend.auth.api.deps import require_current_user
 from backend.auth.service.auth_service import (
     complete_two_factor,
     disable_two_factor,
@@ -45,15 +44,13 @@ from backend.auth.service.registration_service import (
     resend_verification,
 )
 from backend.core.config import AppConfig, get_settings
-from backend.db.models.user import User, UserStatus
+from backend.db.models.user import User
 from backend.db.session import get_db
 from backend.redis.client import get_redis_client
-from backend.security.jwt_service import get_jwt_service
 
 logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/v1/auth", tags=["auth"])
-http_bearer = HTTPBearer(auto_error=False)
 
 
 def _client_ip(request: Request) -> str | None:
@@ -67,33 +64,6 @@ def _client_ip(request: Request) -> str | None:
 
 def _user_agent(request: Request) -> str | None:
     return request.headers.get("user-agent")
-
-
-async def _require_current_user(request: Request, session: Session) -> User:
-    credentials: HTTPAuthorizationCredentials | None = await http_bearer(request)
-    if credentials is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="You don’t have permission to perform this action.")
-
-    token = credentials.credentials
-    jwt_service = get_jwt_service()
-    try:
-        payload = jwt_service.decode(token)
-    except Exception as exc:  # pragma: no cover - invalid token paths
-        logger.info("api.auth.invalid_token", error=str(exc))
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="You don’t have permission to perform this action.") from exc
-
-    if payload.get("type") != "access":
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="You don’t have permission to perform this action.")
-
-    try:
-        user_id = uuid.UUID(str(payload.get("sub")))
-    except Exception as exc:  # pragma: no cover - malformed sub
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="You don’t have permission to perform this action.") from exc
-
-    user = session.get(User, user_id)
-    if not user or user.status != UserStatus.ACTIVE:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You don’t have permission to perform this action.")
-    return user
 
 
 @router.post("/register", response_model=RegistrationResponse)
@@ -222,37 +192,34 @@ async def logout_endpoint(
 
 @router.post("/2fa/enable-init", response_model=TwoFAEnableInitResponse)
 async def enable_two_factor_init_endpoint(
-    request: Request,
+    current_user: User = Depends(require_current_user),
     session: Session = Depends(get_db),
     settings: AppConfig = Depends(get_settings),
 ):
-    user = await _require_current_user(request, session)
-    response = await init_two_factor(db=session, settings=settings, user=user, redis=get_redis_client())
-    logger.info("api.2fa.enable_init", user_id=str(user.id))
+    response = await init_two_factor(db=session, settings=settings, user=current_user, redis=get_redis_client())
+    logger.info("api.2fa.enable_init", user_id=str(current_user.id))
     return response
 
 
 @router.post("/2fa/enable-complete", response_model=TwoFAEnableCompleteResponse)
 async def enable_two_factor_complete_endpoint(
     payload: TwoFAEnableCompleteRequest,
-    request: Request,
+    current_user: User = Depends(require_current_user),
     session: Session = Depends(get_db),
 ):
-    user = await _require_current_user(request, session)
-    response = await complete_two_factor(db=session, request=payload, user=user, redis=get_redis_client())
-    logger.info("api.2fa.enabled", user_id=str(user.id))
+    response = await complete_two_factor(db=session, request=payload, user=current_user, redis=get_redis_client())
+    logger.info("api.2fa.enabled", user_id=str(current_user.id))
     return response
 
 
 @router.post("/2fa/disable", response_model=TwoFADisableResponse)
 async def disable_two_factor_endpoint(
     payload: TwoFADisableRequest,
-    request: Request,
+    current_user: User = Depends(require_current_user),
     session: Session = Depends(get_db),
 ):
-    user = await _require_current_user(request, session)
-    response = await disable_two_factor(db=session, user=user, request=payload)
-    logger.info("api.2fa.disabled", user_id=str(user.id))
+    response = await disable_two_factor(db=session, user=current_user, request=payload)
+    logger.info("api.2fa.disabled", user_id=str(current_user.id))
     return response
 
 
