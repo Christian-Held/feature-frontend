@@ -1,151 +1,220 @@
-"""JWT service handling ES256 signing and key rotation."""
+"""JWT issuance and verification with key rotation support."""
 
 from __future__ import annotations
 
+import json
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import jwt
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePrivateKey
+from cryptography.hazmat.primitives.asymmetric.ec import (
+    EllipticCurvePrivateKey,
+    EllipticCurvePublicKey,
+)
+from jwt.algorithms import get_default_algorithms
 
 from backend.core.config import AppConfig, get_settings
 
 
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
 @dataclass(slots=True)
-class JWTKeyPair:
+class JWKMaterial:
     kid: str
-    private_key: EllipticCurvePrivateKey
-    public_pem: bytes
+    private_key: Optional[EllipticCurvePrivateKey]
+    public_key: EllipticCurvePublicKey
+    jwk: Dict[str, Any]
+
+
+def _load_jwk(
+    data: str | dict[str, Any],
+    *,
+    require_private: bool,
+) -> JWKMaterial:
+    if isinstance(data, str):
+        jwk_dict = json.loads(data)
+    else:
+        jwk_dict = data
+    kid = jwk_dict.get("kid")
+    if not kid:
+        raise ValueError("JWK is missing 'kid'")
+
+    algo = get_default_algorithms()["ES256"]
+    key_obj = algo.from_jwk(json.dumps(jwk_dict))
+    private_key: EllipticCurvePrivateKey | None = None
+    public_key: EllipticCurvePublicKey
+
+    if isinstance(key_obj, EllipticCurvePrivateKey):
+        private_key = key_obj
+        public_key = key_obj.public_key()
+    elif isinstance(key_obj, EllipticCurvePublicKey):
+        public_key = key_obj
+    else:  # pragma: no cover - unexpected key type
+        raise TypeError("Unsupported key type loaded from JWK")
+
+    if require_private and private_key is None:
+        raise ValueError("JWK must contain private component for signing")
+
+    if private_key is None and "d" in jwk_dict:
+        # When explicitly marked as public-only ensure we drop private fields
+        jwk_dict = {k: v for k, v in jwk_dict.items() if k != "d"}
+
+    public_only = {k: v for k, v in jwk_dict.items() if k != "d"}
+    public_key = (
+        algo.from_jwk(json.dumps(public_only))
+        if not isinstance(public_key, EllipticCurvePublicKey)
+        else public_key
+    )
+
+    return JWKMaterial(
+        kid=kid,
+        private_key=private_key,
+        public_key=public_key,
+        jwk=public_only,
+    )
 
 
 class JWTService:
-    """Service responsible for issuing and validating JWTs."""
+    """Issue and validate JWTs with rotating keys."""
 
     def __init__(self, settings: AppConfig):
         self._settings = settings
-        self._keys: dict[str, JWTKeyPair] = {}
-        self._load_keys()
-        if settings.jwt_active_kid not in self._keys:
-            raise ValueError(f"Active KID {settings.jwt_active_kid} not found in key set")
-        self._active_kid = settings.jwt_active_kid
-
-    def _load_keys(self) -> None:
-        private_dir: Path = self._settings.jwt_private_keys_dir
-        public_dir: Path | None = self._settings.jwt_public_keys_dir
-        if not private_dir.exists():
-            raise FileNotFoundError(f"JWT private key directory {private_dir} does not exist")
-
-        for pem_path in private_dir.glob("*.pem"):
-            kid = pem_path.stem
-            with pem_path.open("rb") as fh:
-                private_key = serialization.load_pem_private_key(fh.read(), password=None)
-            if not isinstance(private_key, EllipticCurvePrivateKey):
-                raise ValueError(f"Key {kid} is not an EC private key")
-
-            public_bytes: bytes
-            if public_dir:
-                pub_path = public_dir / f"{kid}.pem"
-                if not pub_path.exists():
-                    raise FileNotFoundError(f"Public key for {kid} not found at {pub_path}")
-                public_bytes = pub_path.read_bytes()
-            else:
-                public_bytes = private_key.public_key().public_bytes(
-                    serialization.Encoding.PEM,
-                    serialization.PublicFormat.SubjectPublicKeyInfo,
-                )
-
-            self._keys[kid] = JWTKeyPair(kid=kid, private_key=private_key, public_pem=public_bytes)
+        self._current = _load_jwk(
+            settings.jwt_jwk_current,
+            require_private=True,
+        )
+        self._next = (
+            _load_jwk(settings.jwt_jwk_next, require_private=False)
+            if settings.jwt_jwk_next
+            else None
+        )
+        self._previous = (
+            _load_jwk(settings.jwt_jwk_previous, require_private=False)
+            if settings.jwt_jwk_previous
+            else None
+        )
 
     @property
     def active_kid(self) -> str:
-        return self._active_kid
+        return self._current.kid
 
-    def set_active_kid(self, kid: str) -> None:
-        if kid not in self._keys:
-            raise ValueError(f"Unknown KID {kid}")
-        self._active_kid = kid
-
-    def _encode(self, payload: dict[str, Any], ttl_seconds: int) -> str:
-        issued_at = datetime.now(timezone.utc)
-        payload = {**payload}
-        payload.setdefault("iat", int(issued_at.timestamp()))
-        payload.setdefault("exp", int((issued_at + timedelta(seconds=ttl_seconds)).timestamp()))
-        payload.setdefault("iss", self._settings.jwt_issuer)
-        payload.setdefault("aud", self._settings.jwt_audience)
-        payload.setdefault("jti", str(uuid.uuid4()))
-
-        keypair = self._keys[self._active_kid]
-        private_bytes = keypair.private_key.private_bytes(
-            serialization.Encoding.PEM,
-            serialization.PrivateFormat.PKCS8,
-            serialization.NoEncryption(),
-        )
-        return jwt.encode(
-            payload,
-            private_bytes,
-            algorithm="ES256",
-            headers={"kid": keypair.kid},
-        )
-
-    def issue_access_token(self, subject: str, claims: dict[str, Any] | None = None) -> str:
+    def issue_access_token(
+        self, subject: str, claims: dict[str, Any] | None = None
+    ) -> str:
         payload = {"sub": subject, "type": "access"}
         if claims:
             payload.update(claims)
         return self._encode(payload, self._settings.jwt_access_ttl_seconds)
 
-    def issue_refresh_token(self, subject: str, claims: dict[str, Any] | None = None) -> str:
+    def issue_refresh_token(
+        self, subject: str, claims: dict[str, Any] | None = None
+    ) -> str:
         payload = {"sub": subject, "type": "refresh"}
         if claims:
             payload.update(claims)
         return self._encode(payload, self._settings.jwt_refresh_ttl_seconds)
 
-    def decode(self, token: str, *, verify_audience: bool = True) -> Dict[str, Any]:
+    def export_public_jwks(self) -> dict[str, Any]:
+        keys = [self._current.jwk]
+        if self._next:
+            keys.append(self._next.jwk)
+        if self._previous:
+            keys.append(self._previous.jwk)
+        return {"keys": keys}
+
+    def set_active_kid(self, kid: str) -> None:
+        """Set the active signing key by kid for testing and rotation flows."""
+
+        if kid == self._current.kid:
+            return
+        if self._next and kid == self._next.kid:
+            self._previous = self._current
+            self._current = self._next
+            self._next = None
+            return
+        if self._previous and kid == self._previous.kid:
+            self._current, self._previous = self._previous, self._current
+            return
+        raise ValueError(f"Unknown key id {kid}")
+
+    def decode(
+        self, token: str, *, verify_audience: bool = True
+    ) -> Dict[str, Any]:
         header = jwt.get_unverified_header(token)
         kid = header.get("kid")
-        if not kid or kid not in self._keys:
-            raise ValueError("Unknown KID in token header")
+        if not kid:
+            raise ValueError("JWT missing kid header")
 
+        material = self._resolve_key(kid)
         options = {"verify_aud": verify_audience}
-        return jwt.decode(
+        payload = jwt.decode(
             token,
-            self._keys[kid].public_pem,
+            material.public_key,
             algorithms=["ES256"],
             audience=self._settings.jwt_audience if verify_audience else None,
             issuer=self._settings.jwt_issuer,
             options=options,
         )
 
-    def export_public_jwks(self) -> dict[str, Any]:
-        """Return JWKS representation of available keys."""
+        if material is self._previous:
+            self._enforce_previous_window(payload)
 
-        jwks = {"keys": []}
-        for key in self._keys.values():
-            public_key = serialization.load_pem_public_key(key.public_pem)
-            numbers = public_key.public_numbers()
-            jwk = {
-                "kty": "EC",
-                "crv": "P-256",
-                "kid": key.kid,
-                "use": "sig",
-                "alg": "ES256",
-                "x": _b64url_uint(numbers.x),
-                "y": _b64url_uint(numbers.y),
-            }
-            jwks["keys"].append(jwk)
-        return jwks
+        return payload
 
+    def _encode(self, payload: dict[str, Any], ttl_seconds: int) -> str:
+        issued_at = _utcnow()
+        claims = {
+            **payload,
+            "iat": int(issued_at.timestamp()),
+            "exp": int(
+                (issued_at + timedelta(seconds=ttl_seconds)).timestamp()
+            ),
+            "iss": self._settings.jwt_issuer,
+            "aud": self._settings.jwt_audience,
+            "jti": str(uuid.uuid4()),
+        }
+        if self._current.private_key is None:  # pragma: no cover - defensive
+            raise RuntimeError("Active JWK lacks private component")
+        return jwt.encode(
+            claims,
+            self._current.private_key,
+            algorithm="ES256",
+            headers={"kid": self._current.kid},
+        )
 
-def _b64url_uint(val: int) -> str:
-    return jwt.utils.base64url_encode(val.to_bytes((val.bit_length() + 7) // 8, "big")).decode("ascii")
+    def _resolve_key(self, kid: str) -> JWKMaterial:
+        if kid == self._current.kid:
+            return self._current
+        if self._next and kid == self._next.kid:
+            return self._next
+        if self._previous and kid == self._previous.kid:
+            return self._previous
+        raise ValueError(f"Unknown KID {kid}")
+
+    def _enforce_previous_window(self, payload: Dict[str, Any]) -> None:
+        token_type = payload.get("type")
+        if token_type != "refresh":  # nosec B105 - allow legacy access tokens
+            return
+        issued_at = payload.get("iat")
+        if not issued_at:
+            raise ValueError(
+                "Token missing issued-at for previous key validation"
+            )
+        issued_dt = datetime.fromtimestamp(int(issued_at), tz=timezone.utc)
+        if _utcnow() - issued_dt > timedelta(
+            seconds=self._settings.jwt_previous_grace_seconds
+        ):
+            raise ValueError(
+                "Token signed with previous key is outside grace window"
+            )
 
 
 def get_jwt_service() -> JWTService:
     return JWTService(get_settings())
 
 
-__all__ = ["JWTService", "JWTKeyPair", "get_jwt_service"]
-
+__all__ = ["JWTService", "get_jwt_service"]

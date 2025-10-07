@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,18 +16,37 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-os.environ.setdefault('DATABASE_URL', 'postgresql+psycopg://user:pass@localhost:5432/testdb')
-os.environ.setdefault('REDIS_URL', 'redis://localhost:6379/0')
-os.environ.setdefault('JWT_ACTIVE_KID', 'current')
-os.environ.setdefault('JWT_PRIVATE_KEYS_DIR', str(Path(__file__).resolve().parent))
-os.environ.setdefault('TURNSTILE_SECRET_KEY', 'test-key')
-os.environ.setdefault('CELERY_BROKER_URL', 'memory://')
-os.environ.setdefault('EMAIL_FROM_ADDRESS', 'noreply@example.com')
-os.environ.setdefault('FRONTEND_BASE_URL', 'https://frontend.example.com')
-os.environ.setdefault('API_BASE_URL', 'https://api.example.com')
-os.environ.setdefault('EMAIL_VERIFICATION_SECRET', 'secret')
-os.environ.setdefault('ADMIN_EMAIL', 'admin@example.com')
-os.environ.setdefault('ADMIN_PASSWORD', 'password123!')
+from backend.scripts.jwk_generate import create_jwk
+
+_current_jwk = create_jwk(kid="current-admin")
+_next_jwk = create_jwk(kid="next-admin")
+_previous_jwk = create_jwk(kid="prev-admin")
+_encryption_keys = {
+    "v1": base64.b64encode(b"1" * 32).decode("utf-8"),
+    "v0": base64.b64encode(b"2" * 32).decode("utf-8"),
+}
+
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+psycopg://user:pass@localhost:5432/testdb"
+)
+os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
+os.environ.setdefault("JWT_JWK_CURRENT", json.dumps(_current_jwk))
+os.environ.setdefault("JWT_JWK_NEXT", json.dumps(_next_jwk))
+os.environ.setdefault("JWT_JWK_PREVIOUS", json.dumps(_previous_jwk))
+os.environ.setdefault("JWT_PREVIOUS_GRACE_SECONDS", "86400")
+os.environ.setdefault("TURNSTILE_SECRET_KEY", "test-key")
+os.environ.setdefault("CELERY_BROKER_URL", "memory://")
+os.environ.setdefault("EMAIL_FROM_ADDRESS", "noreply@example.com")
+os.environ.setdefault("FRONTEND_BASE_URL", "https://frontend.example.com")
+os.environ.setdefault("API_BASE_URL", "https://api.example.com")
+os.environ.setdefault("EMAIL_VERIFICATION_SECRET", "secret")
+os.environ.setdefault("ADMIN_EMAIL", "admin@example.com")
+os.environ.setdefault("ADMIN_PASSWORD", "password123!")
+os.environ.setdefault("ENCRYPTION_KEYS", json.dumps(_encryption_keys))
+os.environ.setdefault("ENCRYPTION_KEY_ACTIVE", "v1")
+os.environ.setdefault("SMTP_HOST", "localhost")
+os.environ.setdefault("SMTP_PORT", "1025")
+os.environ.setdefault("SMTP_USE_TLS", "false")
 
 from backend.admin.api import router as admin_router
 from backend.admin.services import ALLOWED_ROLE_NAMES
@@ -37,6 +58,7 @@ from backend.db.models.user import Role, User, UserStatus
 from backend.db.session import get_db
 from backend.middleware.request_context import RequestContextMiddleware
 from backend.redis.client import get_redis_client
+from backend.security.encryption import get_encryption_service
 
 
 @pytest.fixture
@@ -48,7 +70,9 @@ def admin_app(settings_env):
         future=True,
     )
     Base.metadata.create_all(bind=engine)
-    TestingSession = sessionmaker(bind=engine, expire_on_commit=False, future=True, class_=Session)
+    TestingSession = sessionmaker(
+        bind=engine, expire_on_commit=False, future=True, class_=Session
+    )
     session = TestingSession()
 
     role_objects = {name: Role(name=name) for name in ALLOWED_ROLE_NAMES}
@@ -151,14 +175,18 @@ def test_rbac_requires_admin_role_and_mfa(admin_app):
     session.commit()
     response = client.get("/v1/admin/users")
     assert response.status_code == 403
-    assert response.json()["detail"] == "You don’t have permission to perform this action."
+    assert (
+        response.json()["detail"] == "You don’t have permission to perform this action."
+    )
 
     admin.mfa_enabled = True
     session.commit()
     set_current_user(admin_app["active_user"])
     response = client.get("/v1/admin/users")
     assert response.status_code == 403
-    assert response.json()["detail"] == "You don’t have permission to perform this action."
+    assert (
+        response.json()["detail"] == "You don’t have permission to perform this action."
+    )
 
     set_current_user(admin)
     response = client.get("/v1/admin/users")
@@ -226,7 +254,9 @@ def test_update_roles_emits_audit(admin_app):
     assert refreshed is not None
     assert sorted(role.name for role in refreshed.roles) == ["BILLING_ADMIN", "SUPPORT"]
 
-    audit = session.query(AuditLog).filter(AuditLog.action == "user_roles_changed").one()
+    audit = (
+        session.query(AuditLog).filter(AuditLog.action == "user_roles_changed").one()
+    )
     assert audit.metadata_json["email_hash"]
     assert "@" not in audit.metadata_json["email_hash"]
     assert sorted(audit.metadata_json["roles"]) == ["BILLING_ADMIN", "SUPPORT"]
@@ -264,8 +294,9 @@ def test_reset_two_factor_clears_secrets(admin_app):
     redis = admin_app["redis"]
     _flush(redis)
 
-    target.mfa_secret = b"secret"
-    target.recovery_codes = {"codes": ["abc"]}
+    encryption = get_encryption_service()
+    target.mfa_secret = encryption.encrypt_bytes(b"secret")
+    target.recovery_codes = encryption.encrypt_json(["abc"])
     target.mfa_enabled = True
     session.commit()
 

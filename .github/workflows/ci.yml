@@ -35,6 +35,11 @@ jobs:
         run: |
           set -euo pipefail
           uv sync --python "$PYTHON_PATH" --extra tests
+      - name: Lint and security checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run make audit
       - name: Run tests
         shell: bash
         run: |

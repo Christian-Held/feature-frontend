@@ -16,4 +16,3 @@ def get_redis_client() -> Redis:
 
 
 __all__ = ["get_redis_client"]
-

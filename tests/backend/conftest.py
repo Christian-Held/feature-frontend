@@ -1,64 +1,49 @@
 from __future__ import annotations
 
+import base64
+import json
+import os
 from pathlib import Path
 
 import pytest
-try:
-    from cryptography.hazmat.primitives import serialization
-    from cryptography.hazmat.primitives.asymmetric import ec
-except ModuleNotFoundError:  # pragma: no cover - fallback for minimal environments
-    serialization = None  # type: ignore[assignment]
-    ec = None  # type: ignore[assignment]
-
-
-STATIC_PRIVATE_KEY = """-----BEGIN PRIVATE KEY-----
-MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgYzvF5QGOObz7qJmd
-5Aq71+v+P6lZ2dWr4RVjuBTBBPGhRANCAASkDRF24Iyxn8ddchArm8KTW9nW1wdO
-6Xd7wOpEtVCNrECD8/TvQypVeeLh5aHTmurroCuVNz3nEncB3Gm/y4pe4A4
------END PRIVATE KEY-----
-"""
-
-STATIC_PUBLIC_KEY = """-----BEGIN PUBLIC KEY-----
-MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEpA0RduCMsZ/HXXIQK5vCk1vZ1tcHTul3
-e8DqRLVQjaxAg/P070MqVXni4eWh05rq6ArlTc95xJ3Adxpv8uKXuA==
------END PUBLIC KEY-----
-"""
 
 from backend.core import config
+from backend.scripts.jwk_generate import create_jwk
+
+
+_DEFAULT_CURRENT_JWK = create_jwk(kid="test-current")
+_DEFAULT_NEXT_JWK = create_jwk(kid="test-next")
+_DEFAULT_PREVIOUS_JWK = create_jwk(kid="test-previous")
+_DEFAULT_ENCRYPTION_KEYS = {
+    "v1": base64.b64encode(b"a" * 32).decode("utf-8"),
+    "v0": base64.b64encode(b"b" * 32).decode("utf-8"),
+}
+
+os.environ.setdefault("JWT_JWK_CURRENT", json.dumps(_DEFAULT_CURRENT_JWK))
+os.environ.setdefault("JWT_JWK_NEXT", json.dumps(_DEFAULT_NEXT_JWK))
+os.environ.setdefault("JWT_JWK_PREVIOUS", json.dumps(_DEFAULT_PREVIOUS_JWK))
+os.environ.setdefault("ENCRYPTION_KEYS", json.dumps(_DEFAULT_ENCRYPTION_KEYS))
+os.environ.setdefault("ENCRYPTION_KEY_ACTIVE", "v1")
 
 
 @pytest.fixture
 def settings_env(monkeypatch, tmp_path: Path):
-    private_dir = tmp_path / "jwt"
-    public_dir = private_dir / "public"
-    private_dir.mkdir()
-    public_dir.mkdir()
+    current_jwk = create_jwk(kid="current")
+    next_jwk = create_jwk(kid="next")
+    previous_jwk = create_jwk(kid="previous")
 
-    for kid in ("current", "rotated"):
-        if serialization and ec:
-            private_key = ec.generate_private_key(ec.SECP256R1())
-            private_pem = private_key.private_bytes(
-                serialization.Encoding.PEM,
-                serialization.PrivateFormat.PKCS8,
-                serialization.NoEncryption(),
-            )
-            public_pem = private_key.public_key().public_bytes(
-                serialization.Encoding.PEM,
-                serialization.PublicFormat.SubjectPublicKeyInfo,
-            )
-        else:
-            private_pem = STATIC_PRIVATE_KEY.encode("utf-8")
-            public_pem = STATIC_PUBLIC_KEY.encode("utf-8")
-
-        (private_dir / f"{kid}.pem").write_bytes(private_pem)
-        (public_dir / f"{kid}.pem").write_bytes(public_pem)
+    encryption_keys = {
+        "v1": base64.b64encode(b"a" * 32).decode("utf-8"),
+        "v0": base64.b64encode(b"b" * 32).decode("utf-8"),
+    }
 
     env_vars = {
         "DATABASE_URL": "postgresql+psycopg://user:pass@localhost:5432/testdb",
         "REDIS_URL": "redis://localhost:6379/0",
-        "JWT_ACTIVE_KID": "current",
-        "JWT_PRIVATE_KEYS_DIR": str(private_dir),
-        "JWT_PUBLIC_KEYS_DIR": str(public_dir),
+        "JWT_JWK_CURRENT": json.dumps(current_jwk),
+        "JWT_JWK_NEXT": json.dumps(next_jwk),
+        "JWT_JWK_PREVIOUS": json.dumps(previous_jwk),
+        "JWT_PREVIOUS_GRACE_SECONDS": "86400",
         "ADMIN_EMAIL": "admin@example.com",
         "ADMIN_PASSWORD": "ChangeMe123!",
         "RATE_LIMIT_DEFAULT_REQUESTS": "5",
@@ -74,6 +59,11 @@ def settings_env(monkeypatch, tmp_path: Path):
         "FRONTEND_BASE_URL": "https://app.example.com",
         "API_BASE_URL": "https://api.example.com",
         "EMAIL_VERIFICATION_SECRET": "verification-secret",
+        "ENCRYPTION_KEYS": json.dumps(encryption_keys),
+        "ENCRYPTION_KEY_ACTIVE": "v1",
+        "SMTP_HOST": "localhost",
+        "SMTP_PORT": "1025",
+        "SMTP_USE_TLS": "false",
     }
 
     for key, value in env_vars.items():

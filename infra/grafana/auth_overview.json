@@ -1,0 +1,62 @@
+{
+  "title": "Auth Overview",
+  "uid": "auth-overview",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Login Success vs Failure",
+      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "rate(auth_login_success_total[5m])", "legendFormat": "success"},
+        {"expr": "rate(auth_login_failure_total[5m])", "legendFormat": "failure"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Refresh Success",
+      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "rate(auth_refresh_success_total[5m])", "legendFormat": "refresh"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Request Latency p95",
+      "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{path=~\"/v1/auth/(login|refresh)\"}[5m])))",
+          "legendFormat": "Auth p95"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Captcha Challenges",
+      "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "rate(auth_captcha_challenges_total[5m])", "legendFormat": "challenges"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Lockouts",
+      "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "rate(auth_lockouts_total[5m])", "legendFormat": "lockouts"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Recovery / Refresh Success",
+      "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "rate(auth_refresh_success_total[5m])", "legendFormat": "refresh"},
+        {"expr": "rate(rate_limit_block_total[5m])", "legendFormat": "rate limit blocks"}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+repos:
+  - repo: https://github.com/psf/black
+    rev: 24.8.0
+    hooks:
+      - id: black
+        language_version: python3.12
+        args: ["--check", "--diff"]
+        files: ^(backend/(app\.py|observability/|health/|middleware/security_headers\.py|scripts/|security/(encryption\.py|tasks\.py)|auth/email/client\.py)|scripts/load_smoke_test\.py|tests/backend/(health/|observability/|security/))
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        args: ["--profile", "black", "--filter-files", "--check-only"]
+        files: ^(backend/(app\.py|observability/|health/|middleware/security_headers\.py|scripts/|security/(encryption\.py|tasks\.py)|auth/email/client\.py)|scripts/load_smoke_test\.py|tests/backend/(health/|observability/|security/))
+  - repo: https://github.com/PyCQA/flake8
+    rev: 7.1.0
+    hooks:
+      - id: flake8
+        additional_dependencies: ["flake8-bugbear"]
+        files: ^(backend/(app\.py|observability/|health/|middleware/security_headers\.py|scripts/|security/(encryption\.py|tasks\.py|jwt_service\.py)|auth/email/client\.py)|scripts/load_smoke_test\.py|tests/backend/(health/|observability/|security/))
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
+    hooks:
+      - id: mypy
+        additional_dependencies: ["types-requests"]
+        files: ^(backend/(app\.py|observability/|health/|middleware/security_headers\.py|scripts/|security/(encryption\.py|tasks\.py|jwt_service\.py)|auth/email/client\.py)|scripts/load_smoke_test\.py|tests/backend/(health/|observability/|security/))
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.9
+    hooks:
+      - id: bandit
+        args: ["-r", "backend"]
+        pass_filenames: false
+  - repo: https://github.com/pypa/pip-audit
+    rev: v2.7.3
+    hooks:
+      - id: pip-audit
+        additional_dependencies: ["pip==24.3.1"]
+        pass_filenames: false
+        args: ["--ignore-vuln", "GHSA-4xh5-x5gv-qwph"]
