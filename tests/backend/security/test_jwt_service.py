@@ -1,3 +1,5 @@
+import json
+
 import jwt
 
 from backend.security.jwt_service import JWTService
@@ -14,10 +16,11 @@ def test_jwt_rotation(settings_env):
     assert decoded_first["sub"] == "user-123"
     assert decoded_first["type"] == "access"
 
-    service.set_active_kid("rotated")
+    next_payload = json.loads(settings_env.jwt_jwk_next)
+    service.set_active_kid(next_payload["kid"])
     rotated_token = service.issue_access_token("user-123")
     rotated_header = jwt.get_unverified_header(rotated_token)
-    assert rotated_header["kid"] == "rotated"
+    assert rotated_header["kid"] == next_payload["kid"]
 
     decoded_rotated = service.decode(rotated_token)
     assert decoded_rotated["sub"] == "user-123"

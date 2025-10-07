@@ -73,7 +73,12 @@ def publish_job_event(event_type: str, job: JobModel) -> None:
         client = _get_sync_redis()
         client.publish(_CHANNEL_JOBS, json.dumps(message.__dict__))
     except RedisError as exc:  # pragma: no cover - defensive logging
-        logger.error("job_event_publish_failed", error=str(exc), job_id=job.id, event=event_type)
+        logger.error(
+            "job_event_publish_failed",
+            error=str(exc),
+            job_id=job.id,
+            event_type=event_type,
+        )
 
 
 async def stream_job_events() -> AsyncIterator[JobEvent]:

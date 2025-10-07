@@ -52,10 +52,36 @@ from backend.db.models.audit import AuditLog
 from backend.db.models.user import Session as SessionModel
 from backend.db.models.user import User, UserStatus
 from backend.redis.client import get_redis_client
+from backend.security.encryption import EncryptionService, get_encryption_service
 from backend.security.jwt_service import get_jwt_service
 from backend.security.passwords import get_password_service
 
 logger = structlog.get_logger(__name__)
+
+
+def _load_mfa_secret(raw: bytes, encryption: EncryptionService) -> str:
+    try:
+        payload = json.loads(raw.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return raw.decode("utf-8")
+    if isinstance(payload, dict) and {"version", "nonce", "ciphertext"} <= payload.keys():
+        return encryption.decrypt_bytes(raw).decode("utf-8")
+    return raw.decode("utf-8")
+
+
+def _load_recovery_codes(
+    payload: list[str] | dict[str, str] | None,
+    encryption: EncryptionService,
+) -> list[str]:
+    if payload is None:
+        return []
+    if isinstance(payload, dict) and {"version", "nonce", "ciphertext"} <= payload.keys():
+        data = encryption.decrypt_json(payload)
+        return list(data)
+    if isinstance(payload, list):
+        return payload
+    return list(payload)
+
 
 LOGIN_IP_LIMIT = 10
 LOGIN_ACCOUNT_LIMIT = 5
@@ -224,6 +250,9 @@ async def login_user(
 
     stmt = select(User).where(User.email == email)
     user = db.execute(stmt).scalar_one_or_none()
+    encryption = get_encryption_service()
+    encryption = get_encryption_service()
+    encryption = get_encryption_service()
     password_service = get_password_service()
     raw_password = request.password.get_secret_value()
 
@@ -354,7 +383,8 @@ async def verify_two_factor(
     if not user.mfa_secret:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired challenge.")
 
-    secret = user.mfa_secret.decode("utf-8")
+    encryption = get_encryption_service()
+    secret = _load_mfa_secret(user.mfa_secret, encryption)
     if not verify_totp(secret=secret, otp=request.otp):
         attempts_key = _mfa_attempts_key(user.id)
         attempts = await redis_client.incr(attempts_key)
@@ -564,9 +594,10 @@ async def complete_two_factor(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid security code.")
 
     codes, hashed_codes = generate_recovery_codes()
+    encryption = get_encryption_service()
     user.mfa_enabled = True
-    user.mfa_secret = secret.encode("utf-8")
-    user.recovery_codes = hashed_codes
+    user.mfa_secret = encryption.encrypt_bytes(secret.encode("utf-8"))
+    user.recovery_codes = encryption.encrypt_json(hashed_codes)
     await redis_client.delete(_challenge_key(request.challenge_id))
 
     db.commit()
@@ -586,7 +617,8 @@ async def disable_two_factor(
     if not user.mfa_secret:
         return TwoFADisableResponse(message="Two-factor authentication already disabled.")
 
-    secret = user.mfa_secret.decode("utf-8")
+    encryption = get_encryption_service()
+    secret = _load_mfa_secret(user.mfa_secret, encryption)
     if not verify_totp(secret=secret, otp=request.otp):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid security code.")
 
@@ -626,6 +658,7 @@ async def recovery_login(
 
     await _ensure_not_locked(redis_client, email, user.id)
 
+    encryption = get_encryption_service()
     password_service = get_password_service()
     if request.password:
         if not password_service.verify(user.password_hash, request.password.get_secret_value()):
@@ -641,13 +674,13 @@ async def recovery_login(
     else:  # pragma: no cover - validation should prevent
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request.")
 
-    hashed_codes = user.recovery_codes or []
+    hashed_codes = _load_recovery_codes(user.recovery_codes, encryption)
     code_hash = hash_token(request.recovery_code)
     if code_hash not in hashed_codes:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid security code.")
 
     remaining = rotate_recovery_codes(hashed_codes, code_hash)
-    user.recovery_codes = remaining
+    user.recovery_codes = encryption.encrypt_json(remaining)
 
     jwt_service = get_jwt_service()
     access_token = jwt_service.issue_access_token(str(user.id))

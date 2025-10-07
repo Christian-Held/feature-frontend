@@ -12,6 +12,7 @@ from starlette.types import ASGIApp
 
 request_id_var: ContextVar[str | None] = ContextVar("request_id", default=None)
 admin_user_id_var: ContextVar[str | None] = ContextVar("admin_user_id", default=None)
+user_id_var: ContextVar[str | None] = ContextVar("user_id", default=None)
 
 
 def get_request_id() -> str | None:
@@ -30,6 +31,14 @@ def get_admin_user_id() -> str | None:
     return admin_user_id_var.get()
 
 
+def bind_user_id(user_id: str | None) -> None:
+    user_id_var.set(user_id)
+
+
+def get_user_id() -> str | None:
+    return user_id_var.get()
+
+
 class RequestContextMiddleware(BaseHTTPMiddleware):
     """Middleware that seeds structlog context with request metadata."""
 
@@ -41,10 +50,12 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         request_id = incoming_id or str(uuid.uuid4())
         request_token = request_id_var.set(request_id)
         admin_token = admin_user_id_var.set(None)
+        user_token = user_id_var.set(None)
         try:
             response = await call_next(request)
         finally:
             admin_user_id_var.reset(admin_token)
+            user_id_var.reset(user_token)
             request_id_var.reset(request_token)
         response.headers.setdefault("X-Request-ID", request_id)
         return response
@@ -54,6 +65,8 @@ __all__ = [
     "RequestContextMiddleware",
     "bind_admin_user_id",
     "bind_request_id",
+    "bind_user_id",
     "get_admin_user_id",
     "get_request_id",
+    "get_user_id",
 ]

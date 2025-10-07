@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
+from backend.auth.api.deps import require_current_user
 from backend.auth.schemas import (
     LoginRequest,
     LoginResponse,
@@ -19,15 +20,14 @@ from backend.auth.schemas import (
     RegistrationResponse,
     ResendVerificationRequest,
     ResendVerificationResponse,
+    TwoFADisableRequest,
+    TwoFADisableResponse,
     TwoFAEnableCompleteRequest,
     TwoFAEnableCompleteResponse,
     TwoFAEnableInitResponse,
-    TwoFADisableRequest,
-    TwoFADisableResponse,
     TwoFAVerifyRequest,
     TwoFAVerifyResponse,
 )
-from backend.auth.api.deps import require_current_user
 from backend.auth.service.auth_service import (
     complete_two_factor,
     disable_two_factor,
@@ -96,7 +96,9 @@ async def resend_verification_endpoint(
     """Resend verification email for an unverified user."""
 
     redis = get_redis_client()
-    message = await resend_verification(session=session, request=payload, settings=settings, redis=redis)
+    message = await resend_verification(
+        session=session, request=payload, settings=settings, redis=redis
+    )
     logger.info("api.resend.completed", email=payload.email)
     return ResendVerificationResponse(message=message)
 
@@ -131,7 +133,9 @@ async def login_endpoint(
         user_agent=_user_agent(request),
         ip_address=_client_ip(request),
     )
-    logger.info("api.login.completed", email=payload.email, requires_2fa=response.requires_2fa)
+    logger.info(
+        "api.login.completed", email=payload.email, requires_2fa=response.requires_2fa
+    )
     return response
 
 
@@ -196,7 +200,9 @@ async def enable_two_factor_init_endpoint(
     session: Session = Depends(get_db),
     settings: AppConfig = Depends(get_settings),
 ):
-    response = await init_two_factor(db=session, settings=settings, user=current_user, redis=get_redis_client())
+    response = await init_two_factor(
+        db=session, settings=settings, user=current_user, redis=get_redis_client()
+    )
     logger.info("api.2fa.enable_init", user_id=str(current_user.id))
     return response
 
@@ -207,7 +213,9 @@ async def enable_two_factor_complete_endpoint(
     current_user: User = Depends(require_current_user),
     session: Session = Depends(get_db),
 ):
-    response = await complete_two_factor(db=session, request=payload, user=current_user, redis=get_redis_client())
+    response = await complete_two_factor(
+        db=session, request=payload, user=current_user, redis=get_redis_client()
+    )
     logger.info("api.2fa.enabled", user_id=str(current_user.id))
     return response
 

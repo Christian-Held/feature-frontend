@@ -1,0 +1,56 @@
+groups:
+  - name: auth-hardening
+    rules:
+      - alert: AuthLoginFailureRatioHigh
+        expr: increase(auth_login_failure_total[5m]) / (increase(auth_login_success_total[5m]) + increase(auth_login_failure_total[5m]) + 1e-6) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Login failure ratio is elevated"
+          description: "auth_login_failure_total exceeded 20% of total logins over the last 5 minutes."
+
+      - alert: AuthRefreshFailureRatioHigh
+        expr: rate(http_request_duration_seconds_count{path="/v1/auth/refresh",status=~"4..|5.."}[5m]) / (rate(http_request_duration_seconds_count{path="/v1/auth/refresh"}[5m]) + 1e-6) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Refresh endpoint experiencing errors"
+          description: "More than 5% of refresh calls returned errors over the last 5 minutes."
+
+      - alert: RateLimiterBlocksSpike
+        expr: increase(rate_limit_block_total[10m]) > 10 * (increase(rate_limit_block_total[60m]) / 6)
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Rate limit blocks surged"
+          description: "rate_limit_block_total increased by more than 10x its 1h baseline."
+
+      - alert: EmailPipelineFailures
+        expr: increase(email_failed_total[5m]) > 0 or max_over_time(celery_task_queue_length{queue="auth-emails"}[10m]) > 1000
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Email delivery degraded"
+          description: "Email failures detected or queue backlog above 1000 for more than 10 minutes."
+
+      - alert: CaptchaErrorRateHigh
+        expr: rate(http_request_duration_seconds_count{path="/v1/auth/login",status="400"}[10m]) / (rate(http_request_duration_seconds_count{path="/v1/auth/login"}[10m]) + 1e-6) > 0.2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Captcha verification errors rising"
+          description: "Captcha-related 400 responses exceeded 20% over 10 minutes."
+
+      - alert: DbConnectionErrors
+        expr: rate(http_request_duration_seconds_count{status="500"}[5m]) / (rate(http_request_duration_seconds_count[5m]) + 1e-6) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connectivity errors"
+          description: "500-level responses (potential DB failures) exceeded 1% of traffic over 5 minutes."
