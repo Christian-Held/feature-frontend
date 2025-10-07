@@ -1,4 +1,5 @@
-import { FormEvent, useEffect, useState } from 'react'
+import type { FormEvent } from 'react'
+import { useEffect, useState } from 'react'
 
 import { useAccountLimits, useUpdateAccountLimits } from '../../features/account/hooks'
 import { CAP_WARNING_MESSAGE } from '../../features/account/constants'

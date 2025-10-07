@@ -1,0 +1,26 @@
+{
+  "job_id": "f48160f8-69f4-4c44-be90-0eee4ae016ca",
+  "step_id": null,
+  "role": "cto-plan",
+  "tokens_final": 197,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "task",
+      "source": "task",
+      "score": 7.59999972769173,
+      "tokens": 23,
+      "metadata": {}
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[task score=7.60] erstelle eine index.html seite für PhysioHeld GmbH (sehr einfachde startseite ohne naviagtion)"
+  ]
+}

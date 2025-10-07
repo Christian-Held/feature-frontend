@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 
 import { queryClient } from '../../lib/queryClient'
 import { CAP_WARNING_MESSAGE } from './constants'
@@ -24,7 +24,6 @@ export function clearSpendWarning() {
 }
 
 export function useSpendWarning() {
-  const client = useQueryClient()
   return useQuery({
     queryKey: SPEND_WARNING_KEY,
     queryFn: () => getSpendWarningState(),
@@ -32,8 +31,5 @@ export function useSpendWarning() {
     staleTime: Infinity,
     gcTime: Infinity,
     meta: { source: 'spend-warning' },
-    onSuccess: (data) => {
-      client.setQueryData(SPEND_WARNING_KEY, data)
-    },
   })
 }

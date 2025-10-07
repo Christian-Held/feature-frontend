@@ -1,0 +1,26 @@
+{
+  "job_id": "c283cde1-022e-4b39-a313-8620f1c8e681",
+  "step_id": null,
+  "role": "cto-plan",
+  "tokens_final": 6051,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "task",
+      "source": "task",
+      "score": 1157.2051497010261,
+      "tokens": 2769,
+      "metadata": {}
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[task score=1157.21] Java: 1) High-level architecture "
+  ]
+}

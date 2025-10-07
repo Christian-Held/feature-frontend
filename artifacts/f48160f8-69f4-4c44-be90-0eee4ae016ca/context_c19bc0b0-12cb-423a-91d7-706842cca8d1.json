@@ -1,0 +1,55 @@
+{
+  "job_id": "f48160f8-69f4-4c44-be90-0eee4ae016ca",
+  "step_id": "c19bc0b0-12cb-423a-91d7-706842cca8d1",
+  "role": "coder-step",
+  "tokens_final": 1134,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "history::4a49fbe8-bbf8-4447-b772-754d6558c5f3",
+      "source": "history",
+      "score": 45.84168752068383,
+      "tokens": 139,
+      "metadata": {
+        "role": "cto-plan",
+        "step_id": null
+      }
+    },
+    {
+      "id": "step",
+      "source": "step",
+      "score": 45.83535815470886,
+      "tokens": 147,
+      "metadata": {}
+    },
+    {
+      "id": "task",
+      "source": "task",
+      "score": 16.56093168661276,
+      "tokens": 23,
+      "metadata": {}
+    },
+    {
+      "id": "artifact::context_cto-plan.json",
+      "source": "artifact",
+      "score": 15.766201014643116,
+      "tokens": 148,
+      "metadata": {
+        "path": "artifacts/f48160f8-69f4-4c44-be90-0eee4ae016ca/context_cto-plan.json"
+      }
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[history score=45.84] [{\"title\": \"Erstelle sehr einfache index.html Startseite für PhysioHeld GmbH\", \"rationale\": \"Die Aufgabe verlangt eine einfache Startseite ohne Navigation, die den Firmennamen präsentiert. Dies ist der minimal notwendige Inhalt einer Startseite und erfüllt die Anforderung ohne unnötige Komplexität.\", \"acceptance\": \"Eine Datei index.html liegt vor und zeigt im Browser eine Seite mit dem Titel 'PhysioHeld GmbH' und einer einfachen Überschrift oder einem Text mit dem Firmenname.\", \"files\": [\"index.html\"], \"commands\": [\"cat index.html\", \"open index.html\"]}]",
+    "[step score=45.84] { \"title\": \"Erstelle sehr einfache index.html Startseite für PhysioHeld GmbH\", \"rationale\": \"Die Aufgabe verlangt eine einfache Startseite ohne Navigation, die den Firmennamen präsentiert. Dies ist der minimal notwendige Inhalt einer Startseite und erfüllt die Anforderung ohne unnötige Komplexität.\",",
+    "[task score=16.56] erstelle eine index.html seite für PhysioHeld GmbH (sehr einfachde startseite ohne naviagtion)",
+    "[artifact score=15.77] context_cto-plan.json: { \"job_id\": \"f48160f8-69f4-4c44-be90-0eee4ae016ca\","
+  ]
+}

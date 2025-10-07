@@ -8,6 +8,8 @@ const baseStyles =
 const variants = {
   primary:
     'border-transparent bg-gradient-to-r from-sky-500 to-indigo-500 text-slate-900 hover:from-sky-400 hover:to-indigo-400 focus-visible:outline-primary',
+  secondary:
+    'border-slate-600 bg-slate-700/40 text-slate-200 hover:bg-slate-600/60',
   outline:
     'border-slate-600 bg-transparent text-slate-200 hover:border-slate-400 hover:bg-slate-700/60',
   ghost: 'border-transparent bg-transparent text-slate-300 hover:bg-slate-700/60',

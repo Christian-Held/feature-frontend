@@ -1,8 +1,10 @@
-import {
+import type {
   AccountLimitsResponse,
   AccountLimitsUpdateRequest,
   AccountPlanResponse,
   AccountPlanUpdateRequest,
+} from '../../lib/api'
+import {
   ApiError,
   apiClient,
 } from '../../lib/api'

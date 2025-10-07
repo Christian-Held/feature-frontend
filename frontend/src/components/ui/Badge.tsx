@@ -7,6 +7,8 @@ const statusStyles: Record<string, string> = {
   completed: 'bg-emerald-500/20 text-emerald-200 ring-1 ring-inset ring-emerald-500/40',
   failed: 'bg-rose-500/20 text-rose-200 ring-1 ring-inset ring-rose-500/40',
   cancelled: 'bg-slate-600/30 text-slate-200 ring-1 ring-inset ring-slate-500/50',
+  success: 'bg-emerald-500/20 text-emerald-200 ring-1 ring-inset ring-emerald-500/40',
+  secondary: 'bg-slate-700/50 text-slate-200 ring-1 ring-inset ring-slate-600/70',
   default: 'bg-slate-700/50 text-slate-200 ring-1 ring-inset ring-slate-600/70',
 }
 

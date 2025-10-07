@@ -6,7 +6,7 @@ import {
   updateAccountLimits,
   updateAccountPlan,
 } from './api'
-import { AccountLimitsResponse, AccountPlanResponse } from '../../lib/api'
+import type { AccountLimitsResponse, AccountPlanResponse } from '../../lib/api'
 
 export function useAccountPlan() {
   return useQuery<AccountPlanResponse>({

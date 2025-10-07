@@ -1,0 +1,55 @@
+{
+  "job_id": "ca322869-85b1-4b2f-8273-541ad5119384",
+  "step_id": "dc584e02-12df-4391-95c3-4a35b9b18813",
+  "role": "coder-step",
+  "tokens_final": 836,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "step",
+      "source": "step",
+      "score": 23.582357578300645,
+      "tokens": 95,
+      "metadata": {}
+    },
+    {
+      "id": "history::5a195aeb-eea5-4ede-aa50-c6fc89a98e54",
+      "source": "history",
+      "score": 23.575593346221932,
+      "tokens": 89,
+      "metadata": {
+        "role": "cto-plan",
+        "step_id": null
+      }
+    },
+    {
+      "id": "task",
+      "source": "task",
+      "score": 9.929591748418718,
+      "tokens": 13,
+      "metadata": {}
+    },
+    {
+      "id": "artifact::context_cto-plan.json",
+      "source": "artifact",
+      "score": 8.552154004625837,
+      "tokens": 138,
+      "metadata": {
+        "path": "artifacts/ca322869-85b1-4b2f-8273-541ad5119384/context_cto-plan.json"
+      }
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[step score=23.58] { \"title\": \"Erstelle eine Markdown-Datei mit spezifischem Inhalt\", \"rationale\": \"Um die Aufgabe zu erfüllen, muss eine Markdown-Datei erstellt werden, in die der gewünschte Text 'Hallo Schatz' geschrieben wird.\",",
+    "[history score=23.58] [{\"title\": \"Erstelle eine Markdown-Datei mit spezifischem Inhalt\", \"rationale\": \"Um die Aufgabe zu erfüllen, muss eine Markdown-Datei erstellt werden, in die der gewünschte Text 'Hallo Schatz' geschrieben wird.\", \"acceptance\": \"Die Datei existiert und ihr Inhalt ist exakt 'Hallo Schatz'.\", \"files\": [\"HalloSchatz.md\"], \"commands\": [\"cat HalloSchatz.md\"]}]",
+    "[task score=9.93] erstelle eine md datei mit dem inhalt \"Hallo Schatz\"",
+    "[artifact score=8.55] context_cto-plan.json: { \"job_id\": \"ca322869-85b1-4b2f-8273-541ad5119384\","
+  ]
+}

@@ -1,4 +1,4 @@
-import {
+import type {
   AdminRole,
   AdminUserActionResponse,
   AdminUserSort,
@@ -8,8 +8,8 @@ import {
   AuditLogQuery,
   PaginatedResponse,
   ResendVerificationActionResponse,
-  apiClient,
 } from '../../lib/api'
+import { apiClient } from '../../lib/api'
 
 export async function fetchAdminUsers(params: AdminUsersQuery): Promise<PaginatedResponse<AdminUserSummary>> {
   return apiClient.listAdminUsers(params)

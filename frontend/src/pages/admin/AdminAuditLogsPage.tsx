@@ -206,7 +206,7 @@ export function AdminAuditLogsPage() {
             <div className="p-6 text-sm text-red-300">{UNAUTHORIZED_COPY}</div>
           ) : isLoading ? (
             <div className="flex min-h-[280px] items-center justify-center">
-              <Spinner size="lg" />
+              <Spinner  />
             </div>
           ) : data && data.items.length > 0 ? (
             <div className="overflow-x-auto">
@@ -248,7 +248,7 @@ export function AdminAuditLogsPage() {
                 <Button
                   type="button"
                   variant="secondary"
-                  size="sm"
+                  
                   onClick={() => handlePageChange(-1)}
                   disabled={page <= 1}
                 >
@@ -257,7 +257,7 @@ export function AdminAuditLogsPage() {
                 <Button
                   type="button"
                   variant="secondary"
-                  size="sm"
+                  
                   onClick={() => handlePageChange(1)}
                   disabled={page >= totalPages}
                 >

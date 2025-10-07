@@ -1,0 +1,26 @@
+{
+  "job_id": "c2694cf5-8508-429c-b2e0-c1edeb819dc5",
+  "step_id": null,
+  "role": "cto-plan",
+  "tokens_final": 218,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "task",
+      "source": "task",
+      "score": 11.649997470790096,
+      "tokens": 30,
+      "metadata": {}
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[task score=11.65] mach eine index.html webseite für PhysioHeld GmbH, schau bei www.physioheld.ch ab aber mach es fancy (nur die index.html)"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "job_id": "32800da4-d656-4041-b3a4-34d3666407de",
+  "step_id": null,
+  "role": "cto-plan",
+  "tokens_final": 165,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "task",
+      "source": "task",
+      "score": 5.799999999999999,
+      "tokens": 14,
+      "metadata": {}
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[task score=5.80] create a very simple index.html file for PhysioHeld GmbH"
+  ]
+}

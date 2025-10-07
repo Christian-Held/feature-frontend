@@ -1,0 +1,55 @@
+{
+  "job_id": "6ae25076-d44b-4495-87c8-5058d5523d8d",
+  "step_id": "90377984-207e-47a7-9422-6dc38dcf77a3",
+  "role": "coder-step",
+  "tokens_final": 850,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "history::62a9fa30-1d27-4a40-befb-afd8b92a52a2",
+      "source": "history",
+      "score": 24.769070499768745,
+      "tokens": 96,
+      "metadata": {
+        "role": "cto-plan",
+        "step_id": null
+      }
+    },
+    {
+      "id": "step",
+      "source": "step",
+      "score": 24.76150583179343,
+      "tokens": 103,
+      "metadata": {}
+    },
+    {
+      "id": "task",
+      "source": "task",
+      "score": 11.14824645058952,
+      "tokens": 13,
+      "metadata": {}
+    },
+    {
+      "id": "artifact::context_cto-plan.json",
+      "source": "artifact",
+      "score": 9.716952027098857,
+      "tokens": 138,
+      "metadata": {
+        "path": "artifacts/6ae25076-d44b-4495-87c8-5058d5523d8d/context_cto-plan.json"
+      }
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[history score=24.77] [{\"title\": \"Textdatei erstellen\", \"rationale\": \"Um eine Datei mit dem Inhalt 'Hallo Schatz' zu erstellen, verwenden wir einen Texteditor oder ein Befehlszeilentool.\", \"acceptance\": \"Eine Textdatei mit dem Namen 'nachricht.txt' wird erfolgreich erstellt und enthält den spezifischen Text 'Hallo Schatz'.\", \"files\": [\"nachricht.txt\"], \"commands\": [\"echo 'Hallo Schatz' > nachricht.txt\"]}]",
+    "[step score=24.76] { \"title\": \"Textdatei erstellen\", \"rationale\": \"Um eine Datei mit dem Inhalt 'Hallo Schatz' zu erstellen, verwenden wir einen Texteditor oder ein Befehlszeilentool.\",",
+    "[task score=11.15] erstelle eine text datei mit dem inhalt \"Hallo Schatz\"",
+    "[artifact score=9.72] context_cto-plan.json: { \"job_id\": \"6ae25076-d44b-4495-87c8-5058d5523d8d\","
+  ]
+}

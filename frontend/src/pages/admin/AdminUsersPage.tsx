@@ -12,7 +12,6 @@ import type {
   AdminUserSort,
   AdminUserStatus,
   AdminUserSummary,
-  PaginatedResponse,
 } from '../../lib/api'
 import { ApiError } from '../../lib/api'
 import {
@@ -80,7 +79,7 @@ export function AdminUsersPage() {
   const resetTwoFactor = useResetAdminTwoFactor()
   const resendVerification = useResendAdminVerification()
 
-  const data: PaginatedResponse<AdminUserSummary> | undefined = usersQuery.data
+  const data = usersQuery.data
   const isLoading = usersQuery.isLoading
   const isFetching = usersQuery.isFetching
   const total = data?.total ?? 0
@@ -281,7 +280,7 @@ export function AdminUsersPage() {
             <div className="p-6 text-sm text-red-300">{UNAUTHORIZED_COPY}</div>
           ) : isLoading ? (
             <div className="flex min-h-[280px] items-center justify-center">
-              <Spinner size="lg" />
+              <Spinner  />
             </div>
           ) : data && data.items.length > 0 ? (
             <div className="overflow-x-auto">
@@ -308,7 +307,7 @@ export function AdminUsersPage() {
                         <div className="flex flex-wrap gap-2">
                           <Button
                             type="button"
-                            size="sm"
+                            
                             variant={user.status === 'DISABLED' ? 'primary' : 'secondary'}
                             onClick={() =>
                               performAction(user.status === 'DISABLED' ? 'unlock' : 'lock', user)
@@ -319,7 +318,7 @@ export function AdminUsersPage() {
                           </Button>
                           <Button
                             type="button"
-                            size="sm"
+                            
                             variant="secondary"
                             onClick={() => handleRoleDialogOpen(user)}
                           >
@@ -327,7 +326,7 @@ export function AdminUsersPage() {
                           </Button>
                           <Button
                             type="button"
-                            size="sm"
+                            
                             variant="secondary"
                             onClick={() => performAction('reset', user)}
                             disabled={resetTwoFactor.isPending}
@@ -336,7 +335,7 @@ export function AdminUsersPage() {
                           </Button>
                           <Button
                             type="button"
-                            size="sm"
+                            
                             variant="secondary"
                             onClick={() => performAction('resend', user)}
                             disabled={resendVerification.isPending || user.status !== 'UNVERIFIED'}
@@ -363,7 +362,7 @@ export function AdminUsersPage() {
                 <Button
                   type="button"
                   variant="secondary"
-                  size="sm"
+                  
                   onClick={() => handlePageChange(-1)}
                   disabled={page <= 1}
                 >
@@ -372,7 +371,7 @@ export function AdminUsersPage() {
                 <Button
                   type="button"
                   variant="secondary"
-                  size="sm"
+                  
                   onClick={() => handlePageChange(1)}
                   disabled={page >= totalPages}
                 >

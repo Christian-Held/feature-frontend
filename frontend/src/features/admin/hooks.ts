@@ -17,7 +17,7 @@ export function useAdminUsers(params: AdminUsersQuery) {
   return useQuery({
     queryKey: ['admin', 'users', params],
     queryFn: () => fetchAdminUsers({ sort: ADMIN_DEFAULT_SORT, ...params }),
-    keepPreviousData: true,
+    placeholderData: (previousData) => previousData,
   })
 }
 
@@ -71,7 +71,7 @@ export function useAuditLogs(params: AuditLogQuery) {
   return useQuery({
     queryKey: ['admin', 'audit-logs', params],
     queryFn: () => fetchAuditLogs(params),
-    keepPreviousData: true,
+    placeholderData: (previousData) => previousData,
   })
 }
 

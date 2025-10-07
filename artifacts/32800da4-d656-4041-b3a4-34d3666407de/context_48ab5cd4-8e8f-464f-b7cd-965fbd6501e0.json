@@ -1,0 +1,55 @@
+{
+  "job_id": "32800da4-d656-4041-b3a4-34d3666407de",
+  "step_id": "48ab5cd4-8e8f-464f-b7cd-965fbd6501e0",
+  "role": "coder-step",
+  "tokens_final": 1583,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "step",
+      "source": "step",
+      "score": 30.565003557463015,
+      "tokens": 279,
+      "metadata": {}
+    },
+    {
+      "id": "history::bcb22e51-733a-4831-ab22-41695ec00a27",
+      "source": "history",
+      "score": 30.563206553320843,
+      "tokens": 260,
+      "metadata": {
+        "role": "cto-plan",
+        "step_id": null
+      }
+    },
+    {
+      "id": "task",
+      "source": "task",
+      "score": 14.145803303102307,
+      "tokens": 14,
+      "metadata": {}
+    },
+    {
+      "id": "artifact::context_cto-plan.json",
+      "source": "artifact",
+      "score": 12.72824058301508,
+      "tokens": 138,
+      "metadata": {
+        "path": "artifacts/32800da4-d656-4041-b3a4-34d3666407de/context_cto-plan.json"
+      }
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[step score=30.57] { \"title\": \"Create index.html File\", \"rationale\": \"PhysioHeld GmbH needs a simple homepage for their website to provide information and establish an online presence.\",",
+    "[history score=30.56] [{\"title\": \"Create index.html File\", \"rationale\": \"PhysioHeld GmbH needs a simple homepage for their website to provide information and establish an online presence.\", \"acceptance\": \"The index.html file should be a valid HTML document with a title, header, and a short introductory paragraph about PhysioHeld GmbH.\", \"files\": [\"index.html\"], \"commands\": [\"echo '<!DOCTYPE html>' > index.html\", \"echo '<html lang=\\\"de\\\">' >> index.html\", \"echo '<head>' >> index.html\", \"echo '<meta charset=\\\"UTF-8\\\">' >> index.html\", \"echo '<meta name=\\\"viewport\\\" content=\\\"width=device-width, initial-scale=1.0\\\">' >> index.html\", \"echo '<title>PhysioHeld GmbH</title>' >> index.html\", \"echo '</head>' >> index.html\", \"echo '<body>' >> index.html\", \"echo '<header>' >> index.html\", \"echo '<h1>Willkommen bei PhysioHeld GmbH</h1>' >> index.html\", \"echo '</header>' >> index.html\", \"echo '<p>Wir bieten professionelle Physiotherapie für Ihre Gesundheit und Wohlbefinden.</p>' >> index.html\", \"echo '</body>' >> index.html\", \"echo '</html>' >> index.html\"]}]",
+    "[task score=14.15] create a very simple index.html file for PhysioHeld GmbH",
+    "[artifact score=12.73] context_cto-plan.json: { \"job_id\": \"32800da4-d656-4041-b3a4-34d3666407de\","
+  ]
+}

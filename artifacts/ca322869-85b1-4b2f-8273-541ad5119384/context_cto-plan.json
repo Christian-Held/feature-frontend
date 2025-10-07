@@ -1,0 +1,26 @@
+{
+  "job_id": "ca322869-85b1-4b2f-8273-541ad5119384",
+  "step_id": null,
+  "role": "cto-plan",
+  "tokens_final": 163,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "task",
+      "source": "task",
+      "score": 5.7999997116816715,
+      "tokens": 13,
+      "metadata": {}
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[task score=5.80] erstelle eine md datei mit dem inhalt \"Hallo Schatz\""
+  ]
+}

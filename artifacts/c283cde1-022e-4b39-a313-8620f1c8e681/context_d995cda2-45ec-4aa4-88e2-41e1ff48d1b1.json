@@ -1,0 +1,76 @@
+{
+  "job_id": "c283cde1-022e-4b39-a313-8620f1c8e681",
+  "step_id": "d995cda2-45ec-4aa4-88e2-41e1ff48d1b1",
+  "role": "coder-step",
+  "tokens_final": 9285,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "task",
+      "source": "task",
+      "score": 1205.9722838177518,
+      "tokens": 2769,
+      "metadata": {}
+    },
+    {
+      "id": "artifact::context_9c72d928-d418-41df-ba24-d863c1bc858e.json",
+      "source": "artifact",
+      "score": 250.40342548382637,
+      "tokens": 952,
+      "metadata": {
+        "path": "artifacts/c283cde1-022e-4b39-a313-8620f1c8e681/context_9c72d928-d418-41df-ba24-d863c1bc858e.json"
+      }
+    },
+    {
+      "id": "history::0f286e06-03d0-4f64-a4e0-c888e4590f0b",
+      "source": "history",
+      "score": 230.87148020684785,
+      "tokens": 500,
+      "metadata": {
+        "role": "cto-plan",
+        "step_id": null
+      }
+    },
+    {
+      "id": "step",
+      "source": "step",
+      "score": 193.6449338852983,
+      "tokens": 320,
+      "metadata": {}
+    },
+    {
+      "id": "history::ccd957a4-33f1-44d0-be28-10f1b7272822",
+      "source": "history",
+      "score": 10.915652769092791,
+      "tokens": 33,
+      "metadata": {
+        "role": "coder-step",
+        "step_id": "9c72d928-d418-41df-ba24-d863c1bc858e"
+      }
+    },
+    {
+      "id": "artifact::context_cto-plan.json",
+      "source": "artifact",
+      "score": 8.872261592108318,
+      "tokens": 134,
+      "metadata": {
+        "path": "artifacts/c283cde1-022e-4b39-a313-8620f1c8e681/context_cto-plan.json"
+      }
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[task score=1205.97] Java: 1) High-level architecture ",
+    "[artifact score=250.40] context_9c72d928-d418-41df-ba24-d863c1bc858e.json: { \"job_id\": \"c283cde1-022e-4b39-a313-8620f1c8e681\",",
+    "[history score=230.87] [{\"title\": \"Design Database Schema and Create Initial Migrations\", \"rationale\": \"The foundation of the system relies on a precise and scalable database schema that supports users, roles, tokens, audit logs, plans, and sessions. Initial schema and migrations facilitate subsequent backend development and ensure data integrity.\", \"acceptance\": \"PostgreSQL schema includes tables for users, email_verifications, password_resets, roles, user_roles, permissions, role_permissions, plans, user_plans, spend_limits, sessions, audit_logs, with proper indexes. Liquibase/Flyway migrations are created and validated.\", \"files\": [\"db/migrations/*.sql\", \"src/main/resources/db/changelog-master.xml\"], \"commands\": [\"mvn flyway:migrate\", \"psql -d authdb -f db/migrations/V1__init_schema.sql\"]}, {\"title\": \"Implement User Registration and Email Verification Flow\", \"rationale\": \"Enabling user signup with CAPTCHA verification and email confirmation ensures user authenticity and compliance with security and UX requirements.\", \"acceptance\": \"POST /v1/auth/register validates inputs and CAPTCHA, hashes password with Argon2id, creates UNVERIFIED user, generates single-use 24h email verification token, enqueues email. Handles existing verified/unverified user cases per spec. GET /v1/auth/verify-email validates token, activates user, redirects frontend to /login?verified=1. POST /v1/auth/resend-verification rate-limited to 3/day. Exact error and success messages match UX spec.\", \"files\": [\"src/main/java/com/example/auth/controller/AuthController.java\", \"src/main/java/com/example/auth/service/RegistrationService.java\", \"src/main/java/com/example/auth/service/EmailVerificationService.java\", \"src/main/java/com/example/auth/model/User.java\"], \"commands\": [\"mvn test -Dtest=RegistrationServiceTests.java\", \"curl -X POST http://localhost:8080/v1/auth/register -d '{\\\"email\\\":\\\"test@example.com\\\",\\\"password\\\":\\\"SecurePass123\\\",\\\"captchaToken\\\":\\\"token\\\"}'\", \"curl http://localhost:8080/v1/auth/verify-email?toke",
+    "[step score=193.64] { \"title\": \"Implement User Registration and Email Verification Flow\", \"rationale\": \"Enabling user signup with CAPTCHA verification and email confirmation ensures user authenticity and compliance with security and UX requirements.\",",
+    "[history score=10.92] Model output: --- db/migrations/V1__init_schema.sql +++ db/migrations/V1__init_schema.sql @@",
+    "[artifact score=8.87] context_cto-plan.json: { \"job_id\": \"c283cde1-022e-4b39-a313-8620f1c8e681\","
+  ]
+}
