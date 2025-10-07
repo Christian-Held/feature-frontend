@@ -1,0 +1,59 @@
+# Core API Framework
+fastapi==0.115.5
+uvicorn[standard]==0.32.0
+pydantic==2.9.2
+pydantic-settings==2.6.0
+
+# Async task queue and workers
+celery==5.4.0
+redis==5.2.0
+
+# Database & ORM
+sqlalchemy==2.0.36
+alembic==1.14.0
+psycopg2-binary==2.9.10
+asyncpg==0.30.0
+
+# Logging & Structured logs
+structlog==24.4.0
+python-json-logger==3.1.0
+
+# Security & Crypto
+argon2-cffi==23.1.0
+pyjwt==2.9.0
+python-jose[cryptography]==3.3.0
+pyotp==2.9.0
+qrcode==8.0
+pillow==11.0.0
+cryptography==44.0.0
+
+# HTTP client for CAPTCHA verification
+httpx==0.27.2
+
+# Observability & Monitoring
+prometheus-client==0.21.0
+opentelemetry-api==1.28.2
+opentelemetry-sdk==1.28.2
+opentelemetry-instrumentation==0.49b2
+opentelemetry-instrumentation-fastapi==0.49b2
+opentelemetry-exporter-otlp==1.28.2
+opentelemetry-semantic-conventions==0.49b2
+
+# Email & Notifications
+aiosmtplib==3.0.2
+email-validator==2.2.0
+
+# Configuration
+python-dotenv==1.0.1
+
+# Development & Testing
+black==24.10.0
+flake8==7.1.1
+mypy==1.13.0
+pytest==8.3.3
+pytest-asyncio==0.24.0
+pytest-cov==6.0.0
+
+# Security scanning
+bandit==1.7.10
+pip-audit==2.7.3
