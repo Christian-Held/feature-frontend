@@ -260,13 +260,20 @@ async def get_current_user_endpoint(
     current_user: User = Depends(require_current_user),
 ):
     """Get current authenticated user information."""
+    # Build roles list - include explicit roles from table
+    roles = [role.role for role in current_user.roles] if current_user.roles else []
+
+    # If user has is_superadmin flag, ensure 'superadmin' is in roles
+    if current_user.is_superadmin and 'superadmin' not in roles:
+        roles.append('superadmin')
+
     return {
         "id": str(current_user.id),
         "email": current_user.email,
         "status": current_user.status,
         "mfaEnabled": current_user.mfa_enabled,
         "emailVerified": current_user.email_verified_at is not None,
-        "roles": [role.role for role in current_user.roles] if current_user.roles else [],
+        "roles": roles,
     }
 
 

@@ -185,14 +185,30 @@ export class ApiError extends Error {
 export class ApiClient {
   private readonly baseUrl: string
 
-  constructor(baseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5173') {
+  constructor(baseUrl = import.meta.env.VITE_API_BASE_URL ?? '') {
     this.baseUrl = baseUrl.replace(/\/$/, '')
   }
 
   private get headers(): HeadersInit {
-    return {
+    const headers: HeadersInit = {
       'Content-Type': 'application/json',
     }
+
+    // Add Authorization header if we have an access token
+    // Import dynamically to avoid circular dependencies
+    try {
+      const authState = localStorage.getItem('auth-storage')
+      if (authState) {
+        const parsed = JSON.parse(authState)
+        if (parsed?.state?.accessToken) {
+          headers['Authorization'] = `Bearer ${parsed.state.accessToken}`
+        }
+      }
+    } catch (e) {
+      // Ignore errors reading auth state
+    }
+
+    return headers
   }
 
   private async requestRaw(path: string, options: RequestOptions = {}): Promise<Response> {
@@ -448,6 +464,12 @@ export class ApiClient {
     const wsFromEnv = import.meta.env.VITE_WS_URL;
     if (wsFromEnv) {
       return wsFromEnv;
+    }
+
+    // Handle empty baseUrl by using window.location
+    if (!this.baseUrl) {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      return `${protocol}//${window.location.host}/ws/jobs`;
     }
 
     const url = new URL(this.baseUrl);
