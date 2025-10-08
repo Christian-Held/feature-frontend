@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AuditEventSchema(BaseModel):
@@ -17,7 +17,7 @@ class AuditEventSchema(BaseModel):
     action: str
     resource_type: str | None
     resource_id: UUID | None
-    metadata: dict[str, Any] | None
+    metadata: dict[str, Any] | None = Field(default=None, alias="event_metadata")
     ip_address: str | None
     user_agent: str | None
     created_at: datetime
@@ -25,8 +25,7 @@ class AuditEventSchema(BaseModel):
     # Include actor email for display
     actor_email: str | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class AuditEventListResponse(BaseModel):

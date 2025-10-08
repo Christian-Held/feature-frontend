@@ -45,7 +45,7 @@ def create_audit_event(
         action=action,
         resource_type=resource_type,
         resource_id=resource_id,
-        metadata=metadata or {},
+        event_metadata=metadata or {},
         ip_address=ip_address,
         user_agent=user_agent,
         created_at=datetime.utcnow(),
