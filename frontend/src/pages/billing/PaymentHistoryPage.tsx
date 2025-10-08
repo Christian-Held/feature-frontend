@@ -1,7 +1,33 @@
 import { useState } from 'react'
 import { Card } from '@/components/ui/Card'
 import { usePaymentHistory } from '@/features/billing/hooks'
-import { formatDistanceToNow } from 'date-fns'
+const relativeTimeFormatter = new Intl.RelativeTimeFormat('en', {
+  numeric: 'auto',
+})
+
+const DIVISORS: [Intl.RelativeTimeFormatUnit, number][] = [
+  ['year', 1000 * 60 * 60 * 24 * 365],
+  ['month', 1000 * 60 * 60 * 24 * 30],
+  ['week', 1000 * 60 * 60 * 24 * 7],
+  ['day', 1000 * 60 * 60 * 24],
+  ['hour', 1000 * 60 * 60],
+  ['minute', 1000 * 60],
+  ['second', 1000],
+]
+
+function formatRelativeToNow(date: Date) {
+  const diff = date.getTime() - Date.now()
+
+  for (const [unit, divisor] of DIVISORS) {
+    const difference = diff / divisor
+
+    if (Math.abs(difference) >= 1 || unit === 'second') {
+      return relativeTimeFormatter.format(Math.round(difference), unit)
+    }
+  }
+
+  return relativeTimeFormatter.format(0, 'second')
+}
 
 export default function PaymentHistoryPage() {
   const [page, setPage] = useState(0)
@@ -92,9 +118,7 @@ export default function PaymentHistoryPage() {
                         <td className="py-4 text-sm text-gray-300">
                           <div>{new Date(transaction.created_at).toLocaleDateString()}</div>
                           <div className="text-xs text-gray-500">
-                            {formatDistanceToNow(new Date(transaction.created_at), {
-                              addSuffix: true,
-                            })}
+                            {formatRelativeToNow(new Date(transaction.created_at))}
                           </div>
                         </td>
                         <td className="py-4 text-sm text-white">
