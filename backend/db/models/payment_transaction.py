@@ -39,7 +39,7 @@ class PaymentTransaction(Base):
 
     # Metadata
     description = Column(Text, nullable=True)
-    metadata = Column(Text, nullable=True)  # JSON string for extra data
+    metadata_json = Column("metadata", Text, nullable=True)  # JSON string for extra data
     failure_reason = Column(Text, nullable=True)
 
     # Timestamps
