@@ -192,17 +192,19 @@ export class ApiClient {
   private get headers(): HeadersInit {
     return {
       'Content-Type': 'application/json',
-    };
+    }
   }
 
   private async requestRaw(path: string, options: RequestOptions = {}): Promise<Response> {
+    const baseHeaders = options.body instanceof FormData ? {} : this.headers
+
     return fetch(`${this.baseUrl}${path}`, {
       ...options,
       headers: {
-        ...this.headers,
+        ...baseHeaders,
         ...options.headers,
       },
-    });
+    })
   }
 
   async requestWithMetadata<T>(path: string, options: RequestOptions = {}): Promise<{ data: T; status: number; warning?: string }>
@@ -223,8 +225,31 @@ export class ApiClient {
     return { data, status: response.status, warning };
   }
 
+  private prepareBody(body: unknown, fallback?: BodyInit | null): BodyInit | null | undefined {
+    if (body === undefined) {
+      return fallback
+    }
+
+    if (
+      typeof body === 'string' ||
+      body instanceof FormData ||
+      body instanceof URLSearchParams ||
+      body instanceof Blob ||
+      body instanceof ArrayBuffer ||
+      ArrayBuffer.isView(body)
+    ) {
+      return body as BodyInit
+    }
+
+    if (body === null) {
+      return null
+    }
+
+    return JSON.stringify(body)
+  }
+
   private async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-    const response = await this.requestRaw(path, options);
+    const response = await this.requestRaw(path, options)
 
     if (!response.ok) {
       const message = await response.text();
@@ -235,7 +260,35 @@ export class ApiClient {
       return undefined as T;
     }
 
-    return (await response.json()) as T;
+    return (await response.json()) as T
+  }
+
+  get<T>(path: string, options: RequestOptions = {}) {
+    return this.request<T>(path, { ...options, method: options.method ?? 'GET' })
+  }
+
+  post<T, B = unknown>(path: string, body?: B, options: RequestOptions = {}) {
+    const { body: originalBody, ...rest } = options
+    const preparedBody = this.prepareBody(body, originalBody ?? null)
+    return this.request<T>(path, { ...rest, method: 'POST', body: preparedBody ?? undefined })
+  }
+
+  put<T, B = unknown>(path: string, body?: B, options: RequestOptions = {}) {
+    const { body: originalBody, ...rest } = options
+    const preparedBody = this.prepareBody(body, originalBody ?? null)
+    return this.request<T>(path, { ...rest, method: 'PUT', body: preparedBody ?? undefined })
+  }
+
+  patch<T, B = unknown>(path: string, body?: B, options: RequestOptions = {}) {
+    const { body: originalBody, ...rest } = options
+    const preparedBody = this.prepareBody(body, originalBody ?? null)
+    return this.request<T>(path, { ...rest, method: 'PATCH', body: preparedBody ?? undefined })
+  }
+
+  delete<T, B = unknown>(path: string, body?: B, options: RequestOptions = {}) {
+    const { body: originalBody, ...rest } = options
+    const preparedBody = this.prepareBody(body, originalBody ?? null)
+    return this.request<T>(path, { ...rest, method: 'DELETE', body: preparedBody ?? undefined })
   }
 
   getEnvVariables() {
@@ -405,4 +458,6 @@ export class ApiClient {
   }
 }
 
-export const apiClient = new ApiClient();
+export const apiClient = new ApiClient()
+
+export default apiClient

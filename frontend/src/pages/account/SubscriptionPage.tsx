@@ -24,7 +24,7 @@ export function SubscriptionPage() {
   const { data: rateLimitData, isLoading: isLoadingRateLimits } = useRateLimits()
   const createCheckoutSession = useCreateCheckoutSession()
 
-  const isLoading = isLoadingSub || isLoadingUsage || isLoadingPlans
+  const isLoading = isLoadingSub || isLoadingUsage || isLoadingPlans || isLoadingRateLimits
 
   const handleUpgrade = async (planId: string) => {
     setUpgradingPlanId(planId)
