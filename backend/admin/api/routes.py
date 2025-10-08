@@ -23,10 +23,15 @@ from backend.admin.schemas import (
     AdminUser,
     AdminUserListResponse,
     AuditLogListResponse,
+    ClearRateLimitResponse,
     LockActionResponse,
+    PlatformStats,
     ResetTwoFAResponse,
     ResendVerificationResponse,
+    RevokeSessionsResponse,
     RoleUpdateRequest,
+    UpgradeUserPlanRequest,
+    UpgradeUserPlanResponse,
 )
 from backend.admin.services import AdminUserService, AuditLogService, ALLOWED_ROLE_NAMES
 from backend.auth.service.rate_limit import enforce_rate_limit
@@ -283,6 +288,223 @@ async def export_audit_logs(
     )
     headers = {"Content-Disposition": "attachment; filename=admin-audit-logs.csv"}
     return StreamingResponse(stream, media_type="text/csv", headers=headers)
+
+
+@router.get("/stats", response_model=PlatformStats)
+async def get_platform_stats(
+    session: Session = Depends(get_db),
+    admin_user: User = Depends(require_admin_user),
+    settings: AppConfig = Depends(get_settings),
+    redis: Redis = Depends(get_redis_client),
+) -> PlatformStats:
+    """Get platform-wide statistics."""
+    await enforce_rate_limit(
+        redis,
+        settings=settings,
+        scope="admin:stats",
+        identifier=str(admin_user.id),
+        limit=ADMIN_USERS_PER_MINUTE,
+        window_seconds=ADMIN_LIST_WINDOW_SECONDS,
+    )
+
+    from backend.db.models.subscription_plan import SubscriptionPlan
+    from backend.db.models.user_subscription import UserSubscription
+    from backend.db.models.user_usage import UserUsage
+    from backend.db.models.user import Session as UserSession
+    from sqlalchemy import func
+    from datetime import datetime
+
+    # User counts
+    total_users = session.query(func.count(User.id)).scalar() or 0
+    active_users = session.query(func.count(User.id)).filter(User.status == UserStatus.ACTIVE).scalar() or 0
+    unverified_users = session.query(func.count(User.id)).filter(User.status == UserStatus.UNVERIFIED).scalar() or 0
+    disabled_users = session.query(func.count(User.id)).filter(User.status == UserStatus.DISABLED).scalar() or 0
+    superadmins = session.query(func.count(User.id)).filter(User.is_superadmin == True).scalar() or 0
+    users_with_mfa = session.query(func.count(User.id)).filter(User.mfa_enabled == True).scalar() or 0
+
+    # Session counts
+    total_sessions = session.query(func.count(UserSession.id)).scalar() or 0
+    active_sessions = (
+        session.query(func.count(UserSession.id))
+        .filter(
+            UserSession.revoked_at.is_(None),
+            UserSession.expires_at > datetime.utcnow()
+        )
+        .scalar() or 0
+    )
+
+    # Subscription counts by plan
+    subscriptions_by_plan_query = (
+        session.query(SubscriptionPlan.name, func.count(UserSubscription.id))
+        .outerjoin(UserSubscription, SubscriptionPlan.id == UserSubscription.plan_id)
+        .filter(UserSubscription.status == "active")
+        .group_by(SubscriptionPlan.name)
+        .all()
+    )
+    subscriptions_by_plan = {name: count for name, count in subscriptions_by_plan_query}
+    total_active_subscriptions = sum(subscriptions_by_plan.values())
+
+    # Usage stats (current month)
+    now = datetime.utcnow()
+    current_month_start = datetime(now.year, now.month, 1)
+
+    usage_stats = (
+        session.query(
+            func.sum(UserUsage.api_calls),
+            func.sum(UserUsage.jobs_created),
+            func.sum(UserUsage.storage_used_mb)
+        )
+        .filter(UserUsage.period_start >= current_month_start)
+        .first()
+    )
+
+    total_api_calls = usage_stats[0] or 0
+    total_jobs_created = usage_stats[1] or 0
+    total_storage_mb = usage_stats[2] or 0
+
+    return PlatformStats(
+        total_users=total_users,
+        active_users=active_users,
+        unverified_users=unverified_users,
+        disabled_users=disabled_users,
+        superadmins=superadmins,
+        users_with_mfa=users_with_mfa,
+        total_sessions=total_sessions,
+        active_sessions=active_sessions,
+        subscriptions_by_plan=subscriptions_by_plan,
+        total_active_subscriptions=total_active_subscriptions,
+        total_api_calls=total_api_calls,
+        total_jobs_created=total_jobs_created,
+        total_storage_mb=total_storage_mb,
+    )
+
+
+@router.post("/users/{user_id}/revoke-sessions", response_model=RevokeSessionsResponse)
+async def revoke_user_sessions(
+    request: Request,
+    user_id: UUID,
+    session: Session = Depends(get_db),
+    admin_user: User = Depends(require_admin_user),
+    settings: AppConfig = Depends(get_settings),
+    redis: Redis = Depends(get_redis_client),
+) -> RevokeSessionsResponse:
+    """Revoke all sessions for a specific user."""
+    await _enforce_mutation_limit(redis, settings=settings, admin_user=admin_user, target_user_id=user_id)
+
+    from backend.db.models.user import Session as UserSession
+    from datetime import datetime
+
+    # Update all active sessions for this user
+    revoked_count = (
+        session.query(UserSession)
+        .filter(
+            UserSession.user_id == user_id,
+            UserSession.revoked_at.is_(None)
+        )
+        .update({"revoked_at": datetime.utcnow()}, synchronize_session=False)
+    )
+
+    session.commit()
+
+    logger.info(
+        "admin_revoked_user_sessions",
+        admin_id=str(admin_user.id),
+        target_user_id=str(user_id),
+        revoked_count=revoked_count,
+        ip=_client_ip(request),
+    )
+
+    return RevokeSessionsResponse(revoked_count=revoked_count, user_id=user_id)
+
+
+@router.post("/users/{user_id}/clear-rate-limits", response_model=ClearRateLimitResponse)
+async def clear_user_rate_limits(
+    request: Request,
+    user_id: UUID,
+    session: Session = Depends(get_db),
+    admin_user: User = Depends(require_admin_user),
+    settings: AppConfig = Depends(get_settings),
+    redis: Redis = Depends(get_redis_client),
+) -> ClearRateLimitResponse:
+    """Clear all rate limits for a specific user."""
+    await _enforce_mutation_limit(redis, settings=settings, admin_user=admin_user, target_user_id=user_id)
+
+    # Get all rate limit keys for this user from Redis
+    # Pattern: {prefix}:*:{user_id}
+    prefix = settings.redis_rate_limit_prefix
+    pattern = f"{prefix}:*:{user_id}*"
+
+    keys_deleted = 0
+    cursor = 0
+    while True:
+        cursor, keys = await redis.scan(cursor, match=pattern, count=100)
+        if keys:
+            keys_deleted += await redis.delete(*keys)
+        if cursor == 0:
+            break
+
+    logger.info(
+        "admin_cleared_rate_limits",
+        admin_id=str(admin_user.id),
+        target_user_id=str(user_id),
+        keys_deleted=keys_deleted,
+        ip=_client_ip(request),
+    )
+
+    return ClearRateLimitResponse(
+        success=True,
+        message=f"Cleared {keys_deleted} rate limit keys for user {user_id}"
+    )
+
+
+@router.post("/users/{user_id}/upgrade-plan", response_model=UpgradeUserPlanResponse)
+async def upgrade_user_plan(
+    request: Request,
+    user_id: UUID,
+    payload: UpgradeUserPlanRequest,
+    session: Session = Depends(get_db),
+    admin_user: User = Depends(require_admin_user),
+    settings: AppConfig = Depends(get_settings),
+    redis: Redis = Depends(get_redis_client),
+) -> UpgradeUserPlanResponse:
+    """Upgrade or change a user's subscription plan (admin action)."""
+    await _enforce_mutation_limit(redis, settings=settings, admin_user=admin_user, target_user_id=user_id)
+
+    from backend.subscription import service as subscription_service
+
+    # Verify user exists
+    target_user = session.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    # Upgrade the plan
+    try:
+        subscription = subscription_service.upgrade_user_plan(
+            session,
+            user_id,
+            payload.plan_name,
+            duration_days=payload.duration_days
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    session.commit()
+
+    logger.info(
+        "admin_upgraded_user_plan",
+        admin_id=str(admin_user.id),
+        target_user_id=str(user_id),
+        plan_name=payload.plan_name,
+        duration_days=payload.duration_days,
+        ip=_client_ip(request),
+    )
+
+    return UpgradeUserPlanResponse(
+        user_id=user_id,
+        plan_name=payload.plan_name,
+        subscription_id=subscription.id,
+        expires_at=subscription.expires_at,
+    )
 
 
 async def _enforce_mutation_limit(

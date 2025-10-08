@@ -123,6 +123,11 @@ class AppConfig(BaseSettings):
     smtp_user: str | None = Field(default=None, validation_alias="SMTP_USER")
     smtp_pass: str | None = Field(default=None, validation_alias="SMTP_PASS")
 
+    # Stripe Configuration
+    stripe_api_key: str = Field(validation_alias="STRIPE_API_KEY")
+    stripe_webhook_secret: str = Field(validation_alias="STRIPE_WEBHOOK_SECRET")
+    stripe_publishable_key: str = Field(validation_alias="STRIPE_PUBLISHABLE_KEY")
+
     @field_validator("log_level", mode="before")
     @classmethod
     def _uppercase_log_level(cls, value):

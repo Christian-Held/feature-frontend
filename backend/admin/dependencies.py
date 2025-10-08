@@ -20,11 +20,21 @@ def _role_names(roles: Iterable[Role]) -> set[str]:
 
 
 async def require_admin_user(current_user: Annotated[User, Depends(require_current_user)]) -> User:
-    """Ensure the current user is an ADMIN with MFA enabled."""
+    """Ensure the current user is an ADMIN with MFA enabled, or a superadmin.
 
+    Superadmins (is_superadmin=True) bypass the MFA requirement and role check.
+    """
+
+    # Superadmins bypass all checks
+    if current_user.is_superadmin:
+        bind_admin_user_id(str(current_user.id))
+        return current_user
+
+    # Regular admin users need MFA enabled
     if not current_user.mfa_enabled:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=FORBIDDEN_MESSAGE)
 
+    # Regular admin users need ADMIN role
     if ADMIN_ROLE not in _role_names(current_user.roles):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=FORBIDDEN_MESSAGE)
 

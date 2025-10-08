@@ -1,0 +1,76 @@
+{
+  "job_id": "71b4b507-4ded-4828-8648-d361badec044",
+  "step_id": "c23c0a39-6e13-47b1-9c69-63bfb0b333d4",
+  "role": "coder-step",
+  "tokens_final": 2023,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "artifact::context_b9efe7a8-d95a-4191-98a7-fe2f4f03a66a.json",
+      "source": "artifact",
+      "score": 46.74054477027177,
+      "tokens": 619,
+      "metadata": {
+        "path": "artifacts/71b4b507-4ded-4828-8648-d361badec044/context_b9efe7a8-d95a-4191-98a7-fe2f4f03a66a.json"
+      }
+    },
+    {
+      "id": "history::cee239db-742f-4bf3-9a93-3e43a7c1fd8a",
+      "source": "history",
+      "score": 43.03318756209425,
+      "tokens": 218,
+      "metadata": {
+        "role": "cto-plan",
+        "step_id": null
+      }
+    },
+    {
+      "id": "step",
+      "source": "step",
+      "score": 39.220144627030564,
+      "tokens": 162,
+      "metadata": {}
+    },
+    {
+      "id": "task",
+      "source": "task",
+      "score": 11.14687801025699,
+      "tokens": 11,
+      "metadata": {}
+    },
+    {
+      "id": "artifact::context_cto-plan.json",
+      "source": "artifact",
+      "score": 9.121120373395167,
+      "tokens": 133,
+      "metadata": {
+        "path": "artifacts/71b4b507-4ded-4828-8648-d361badec044/context_cto-plan.json"
+      }
+    },
+    {
+      "id": "history::3b60c8fd-1149-4c51-86cf-27d6028d925f",
+      "source": "history",
+      "score": 1.4548222143371226,
+      "tokens": 33,
+      "metadata": {
+        "role": "coder-step",
+        "step_id": "b9efe7a8-d95a-4191-98a7-fe2f4f03a66a"
+      }
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[artifact score=46.74] context_b9efe7a8-d95a-4191-98a7-fe2f4f03a66a.json: { \"job_id\": \"71b4b507-4ded-4828-8648-d361badec044\",",
+    "[history score=43.03] [{\"title\": \"Create a Java source file named omg.java\", \"rationale\": \"The task explicitly requires a Java file named omg.java to be created.\", \"acceptance\": \"The file omg.java exists in the working directory.\", \"files\": [\"omg.java\"], \"commands\": [\"touch omg.java\"]}, {\"title\": \"Write 'Hello, World!' program in omg.java\", \"rationale\": \"To fulfill the Hello World program requirement, the Java source file should contain a valid Java class that prints 'Hello, World!' when run.\", \"acceptance\": \"The file omg.java contains a valid Java class with a main method that prints 'Hello, World!' to standard output.\", \"files\": [\"omg.java\"], \"commands\": [\"echo 'public class omg {' > omg.java\", \"echo '    public static void main(String[] args) {' >> omg.java\", \"echo '        System.out.println(\\\"Hello, World!\\\");' >> omg.java\", \"echo '    }' >> omg.java\", \"echo '}' >> omg.java\"]}]",
+    "[step score=39.22] { \"title\": \"Write 'Hello, World!' program in omg.java\", \"rationale\": \"To fulfill the Hello World program requirement, the Java source file should contain a valid Java class that prints 'Hello, World!' when run.\",",
+    "[task score=11.15] create hello world java file with name omg.java",
+    "[artifact score=9.12] context_cto-plan.json: { \"job_id\": \"71b4b507-4ded-4828-8648-d361badec044\",",
+    "[history score=1.45] Model output: omg.java::FULL ``` public class omg {"
+  ]
+}

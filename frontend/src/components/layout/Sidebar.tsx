@@ -1,10 +1,12 @@
 import { NavLink } from 'react-router-dom'
 import { twMerge } from 'tailwind-merge'
-import { Squares2X2Icon, Cog6ToothIcon, CreditCardIcon, ChartBarIcon } from '@heroicons/react/24/outline'
+import { Squares2X2Icon, Cog6ToothIcon, CreditCardIcon, ChartBarIcon, RocketLaunchIcon, BanknotesIcon } from '@heroicons/react/24/outline'
 
 const navItems = [
   { name: 'Dashboard', to: '/', icon: Squares2X2Icon },
+  { name: 'Subscription', to: '/account/subscription', icon: RocketLaunchIcon },
   { name: 'Billing', to: '/account/billing', icon: CreditCardIcon },
+  { name: 'Payment History', to: '/billing/history', icon: BanknotesIcon },
   { name: 'Limits', to: '/account/limits', icon: ChartBarIcon },
   { name: 'Settings', to: '/settings', icon: Cog6ToothIcon },
 ]

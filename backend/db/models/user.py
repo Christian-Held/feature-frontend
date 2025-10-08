@@ -33,10 +33,15 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     recovery_codes: Mapped[dict | None] = mapped_column(JSON, default=None)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_ip: Mapped[str | None] = mapped_column(String(45))
+    is_superadmin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     roles: Mapped[list["Role"]] = relationship("Role", secondary="user_roles", back_populates="users")
     sessions: Mapped[list["Session"]] = relationship("Session", back_populates="user")
     plans: Mapped[list["UserPlan"]] = relationship("UserPlan", back_populates="user")
+    subscriptions: Mapped[list["UserSubscription"]] = relationship("UserSubscription", back_populates="user")
+    usage_records: Mapped[list["UserUsage"]] = relationship("UserUsage", back_populates="user")
+    payment_transactions: Mapped[list["PaymentTransaction"]] = relationship("PaymentTransaction", back_populates="user")
+    audit_events: Mapped[list["AuditEvent"]] = relationship("AuditEvent", back_populates="actor", foreign_keys="[AuditEvent.actor_id]")
 
 
 class EmailVerification(UUIDPrimaryKeyMixin, TimestampMixin, Base):

@@ -4,6 +4,7 @@ import { DashboardPage } from './pages/DashboardPage'
 import { BillingPage } from './pages/account/BillingPage'
 import { LimitsPage } from './pages/account/LimitsPage'
 import { SecurityPage } from './pages/account/SecurityPage'
+import { SubscriptionPage } from './pages/account/SubscriptionPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { AdminUsersPage } from './pages/admin/AdminUsersPage'
 import { AdminAuditLogsPage } from './pages/admin/AdminAuditLogsPage'
@@ -14,6 +15,7 @@ import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage'
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage'
 import { TwoFactorVerifyPage } from './pages/auth/TwoFactorVerifyPage'
 import { TwoFactorSetupPage } from './pages/auth/TwoFactorSetupPage'
+import PaymentHistoryPage from './pages/billing/PaymentHistoryPage'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { Spinner } from './components/ui/Spinner'
 
@@ -41,6 +43,14 @@ export function App() {
           element={
             <ProtectedRoute>
               <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/account/subscription"
+          element={
+            <ProtectedRoute>
+              <SubscriptionPage />
             </ProtectedRoute>
           }
         />
@@ -97,6 +107,14 @@ export function App() {
           element={
             <ProtectedRoute>
               <AdminAuditLogsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/billing/history"
+          element={
+            <ProtectedRoute>
+              <PaymentHistoryPage />
             </ProtectedRoute>
           }
         />

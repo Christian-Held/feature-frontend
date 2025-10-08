@@ -1,0 +1,26 @@
+{
+  "job_id": "11e2a06d-6e27-42b1-9512-c55d83065d64",
+  "step_id": null,
+  "role": "cto-plan",
+  "tokens_final": 145,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "task",
+      "source": "task",
+      "score": 2.8,
+      "tokens": 7,
+      "metadata": {}
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[task score=2.80] create simple index.html file"
+  ]
+}

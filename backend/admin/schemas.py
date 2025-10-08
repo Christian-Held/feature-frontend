@@ -85,6 +85,59 @@ class AuditLogListResponse(PaginatedResponse[AuditLogEntry]):
     """Paginated audit log listing."""
 
 
+class PlatformStats(BaseModel):
+    """Platform-wide statistics for admin dashboard."""
+
+    total_users: int
+    active_users: int
+    unverified_users: int
+    disabled_users: int
+    superadmins: int
+
+    users_with_mfa: int
+
+    total_sessions: int
+    active_sessions: int
+
+    subscriptions_by_plan: dict[str, int]
+    total_active_subscriptions: int
+
+    # Usage stats (current month)
+    total_api_calls: int
+    total_jobs_created: int
+    total_storage_mb: int
+
+
+class RevokeSessionsResponse(BaseModel):
+    """Response after revoking user sessions."""
+
+    revoked_count: int
+    user_id: UUID
+
+
+class ClearRateLimitResponse(BaseModel):
+    """Response after clearing rate limits."""
+
+    success: bool
+    message: str
+
+
+class UpgradeUserPlanRequest(BaseModel):
+    """Request to upgrade a user's subscription plan."""
+
+    plan_name: str
+    duration_days: int | None = None
+
+
+class UpgradeUserPlanResponse(BaseModel):
+    """Response after upgrading user's plan."""
+
+    user_id: UUID
+    plan_name: str
+    subscription_id: UUID
+    expires_at: datetime | None
+
+
 __all__ = [
     "AdminUser",
     "AdminUserListResponse",
@@ -95,4 +148,9 @@ __all__ = [
     "ResetTwoFAResponse",
     "RoleUpdateRequest",
     "LockActionResponse",
+    "PlatformStats",
+    "RevokeSessionsResponse",
+    "ClearRateLimitResponse",
+    "UpgradeUserPlanRequest",
+    "UpgradeUserPlanResponse",
 ]

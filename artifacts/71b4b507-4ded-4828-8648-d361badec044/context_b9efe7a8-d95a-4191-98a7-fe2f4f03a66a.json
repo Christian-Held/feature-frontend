@@ -1,0 +1,55 @@
+{
+  "job_id": "71b4b507-4ded-4828-8648-d361badec044",
+  "step_id": "b9efe7a8-d95a-4191-98a7-fe2f4f03a66a",
+  "role": "coder-step",
+  "tokens_final": 1023,
+  "tokens_clipped": 0,
+  "compact_ops": 0,
+  "budget": {
+    "budget_tokens": 64000,
+    "reserve_tokens": 8000,
+    "hard_cap_tokens": 70000
+  },
+  "sources": [
+    {
+      "id": "history::cee239db-742f-4bf3-9a93-3e43a7c1fd8a",
+      "source": "history",
+      "score": 26.001345517512366,
+      "tokens": 218,
+      "metadata": {
+        "role": "cto-plan",
+        "step_id": null
+      }
+    },
+    {
+      "id": "step",
+      "source": "step",
+      "score": 20.36292571408136,
+      "tokens": 72,
+      "metadata": {}
+    },
+    {
+      "id": "task",
+      "source": "task",
+      "score": 10.53595150258644,
+      "tokens": 11,
+      "metadata": {}
+    },
+    {
+      "id": "artifact::context_cto-plan.json",
+      "source": "artifact",
+      "score": 7.949568832320534,
+      "tokens": 133,
+      "metadata": {
+        "path": "artifacts/71b4b507-4ded-4828-8648-d361badec044/context_cto-plan.json"
+      }
+    }
+  ],
+  "dropped": [],
+  "hints": [
+    "[history score=26.00] [{\"title\": \"Create a Java source file named omg.java\", \"rationale\": \"The task explicitly requires a Java file named omg.java to be created.\", \"acceptance\": \"The file omg.java exists in the working directory.\", \"files\": [\"omg.java\"], \"commands\": [\"touch omg.java\"]}, {\"title\": \"Write 'Hello, World!' program in omg.java\", \"rationale\": \"To fulfill the Hello World program requirement, the Java source file should contain a valid Java class that prints 'Hello, World!' when run.\", \"acceptance\": \"The file omg.java contains a valid Java class with a main method that prints 'Hello, World!' to standard output.\", \"files\": [\"omg.java\"], \"commands\": [\"echo 'public class omg {' > omg.java\", \"echo '    public static void main(String[] args) {' >> omg.java\", \"echo '        System.out.println(\\\"Hello, World!\\\");' >> omg.java\", \"echo '    }' >> omg.java\", \"echo '}' >> omg.java\"]}]",
+    "[step score=20.36] { \"title\": \"Create a Java source file named omg.java\", \"rationale\": \"The task explicitly requires a Java file named omg.java to be created.\",",
+    "[task score=10.54] create hello world java file with name omg.java",
+    "[artifact score=7.95] context_cto-plan.json: { \"job_id\": \"71b4b507-4ded-4828-8648-d361badec044\","
+  ]
+}
