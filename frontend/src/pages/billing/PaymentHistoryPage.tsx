@@ -1,6 +1,6 @@
 import { useState } from 'react'
+import { Card } from '@/components/ui/Card'
 import { usePaymentHistory } from '@/features/billing/hooks'
-import { Card } from '@/components/ui/card'
 import { formatDistanceToNow } from 'date-fns'
 
 export default function PaymentHistoryPage() {
@@ -16,21 +16,6 @@ export default function PaymentHistoryPage() {
       style: 'currency',
       currency: currency.toUpperCase(),
     }).format(amount)
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'succeeded':
-        return 'text-green-400'
-      case 'pending':
-        return 'text-yellow-400'
-      case 'failed':
-        return 'text-red-400'
-      case 'refunded':
-        return 'text-gray-400'
-      default:
-        return 'text-gray-400'
-    }
   }
 
   const getStatusBadgeColor = (status: string) => {

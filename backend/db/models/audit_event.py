@@ -38,7 +38,7 @@ class AuditEvent(Base):
     resource_id = Column(UUID(as_uuid=True), nullable=True, index=True)
 
     # Additional context
-    metadata = Column(JSONB, nullable=True)
+    event_metadata = Column("event_metadata", JSONB, nullable=True)
     # Store action-specific data: {'old_plan': 'free', 'new_plan': 'pro'}
 
     # Request context
