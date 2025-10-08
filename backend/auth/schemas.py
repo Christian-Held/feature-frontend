@@ -167,6 +167,33 @@ class RefreshResponse(TokenPairResponse):
     pass
 
 
+class ForgotPasswordRequest(BaseModel):
+    """Payload for requesting a password reset."""
+
+    email: EmailStr
+
+
+class ForgotPasswordResponse(BaseModel):
+    """Response for password reset request."""
+
+    message: str
+
+
+class ResetPasswordRequest(BaseModel):
+    """Payload for resetting password with token."""
+
+    token: str
+    new_password: SecretStr = Field(..., alias="newPassword", min_length=12)
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ResetPasswordResponse(BaseModel):
+    """Response for successful password reset."""
+
+    message: str
+
+
 __all__ = [
     "LoginRequest",
     "LoginResponse",
@@ -187,4 +214,8 @@ __all__ = [
     "RegistrationResponse",
     "ResendVerificationRequest",
     "ResendVerificationResponse",
+    "ForgotPasswordRequest",
+    "ForgotPasswordResponse",
+    "ResetPasswordRequest",
+    "ResetPasswordResponse",
 ]

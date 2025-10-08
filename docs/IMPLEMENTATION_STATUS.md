@@ -151,14 +151,20 @@ Last Updated: 2025-10-07
 - ✅ **FIXED**: White page issue - all auth pages now implemented
 - ✅ **FIXED**: Unused imports in authApi.ts
 - ✅ **FIXED**: Missing Badge variants (success, secondary)
+- ✅ **FIXED**: Frontend → Backend routing (Vite proxy configured for /v1)
+- ✅ **FIXED**: 422 validation error handling (formatApiError helper added)
+- ✅ **FIXED**: Missing /me endpoint added to backend
 
 ### Backend
 - ✅ All tests passing
-- ✅ No known issues
+- ✅ Routing configured correctly (auth on port 8000, orchestrator on port 3000)
+- ⚠️ Backend configuration needs cleanup (mixed .env with orchestrator vars)
+- ⚠️ Password reset service needs implementation (placeholder endpoints exist)
 
 ### Database
 - ⚠️ Need to test PostgreSQL in production (currently only tested with SQLite locally)
 - ⚠️ Need to verify backup/restore procedures
+- ⚠️ Need to run alembic migrations before first use
 
 ---
 
@@ -181,8 +187,11 @@ Last Updated: 2025-10-07
 - [ ] Encryption keys need regeneration
 - [ ] Admin password needs change
 - [ ] No SSL/TLS configured
-- [ ] No production database configured
+- [ ] No production database configured (PostgreSQL needed)
 - [ ] No production Redis configured
+- [ ] Database migrations not run (run `alembic upgrade head`)
+- [ ] Celery worker not configured for email sending
+- [ ] Password reset service implementation incomplete
 
 ---
 
@@ -285,3 +294,305 @@ Last Updated: 2025-10-07
 - **Frontend Implementation:** `docs/FRONTEND_AUTH_PAGES.md`
 - **API Documentation:** FastAPI auto-generated at `/docs`
 - **Database Schema:** `alembic/versions/202410091200_create_auth_foundations.py`
+
+---
+
+## 📋 Production Deployment Checklist
+
+### Pre-Deployment (Critical)
+
+#### 1. Generate Production Secrets (30 minutes)
+```bash
+# Generate JWT ES256 key pair
+python scripts/generate_jwt_keys.py
+
+# Generate encryption key for MFA secrets
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+
+# Update .env with generated keys
+# JWT_JWK_CURRENT=<generated-key>
+# ENCRYPTION_KEYS={"v1":"<generated-fernet-key>"}
+```
+
+#### 2. Configure Production Services (2 hours)
+
+**PostgreSQL:**
+```bash
+# Install PostgreSQL
+sudo apt install postgresql postgresql-contrib
+
+# Create database and user
+sudo -u postgres psql
+CREATE DATABASE feature_frontend;
+CREATE USER feature_user WITH ENCRYPTED PASSWORD 'strong_password_here';
+GRANT ALL PRIVILEGES ON DATABASE feature_frontend TO feature_user;
+
+# Update .env
+# DATABASE_URL=postgresql://feature_user:strong_password_here@localhost:5432/feature_frontend
+```
+
+**Redis:**
+```bash
+# Install Redis
+sudo apt install redis-server
+
+# Configure Redis for persistence
+sudo nano /etc/redis/redis.conf
+# Set: appendonly yes
+
+# Update .env
+# REDIS_URL=redis://localhost:6379/0
+```
+
+**SMTP (Choose one):**
+- **AWS SES:** See docs/CONFIGURATION.md#smtp
+- **SendGrid:** See docs/CONFIGURATION.md#smtp
+- **Mailgun:** See docs/CONFIGURATION.md#smtp
+
+Update .env:
+```bash
+SMTP_HOST=smtp.sendgrid.net
+SMTP_PORT=587
+SMTP_USE_TLS=true
+SMTP_USER=apikey
+SMTP_PASS=SG.your_api_key_here
+EMAIL_FROM_ADDRESS=noreply@yourdomain.com
+```
+
+**Cloudflare Turnstile:**
+```bash
+# Get production keys from https://dash.cloudflare.com/
+# Update .env:
+TURNSTILE_SECRET_KEY=<your-secret-key>
+
+# Update frontend/.env:
+VITE_TURNSTILE_SITE_KEY=<your-site-key>
+```
+
+#### 3. Run Database Migrations (5 minutes)
+```bash
+cd /path/to/project
+source .venv/bin/activate
+alembic upgrade head
+```
+
+#### 4. Update Admin Credentials (2 minutes)
+```bash
+# Update .env with strong password
+ADMIN_EMAIL=admin@yourdomain.com
+ADMIN_PASSWORD=<generate-strong-password>
+
+# Admin will be created on first migration
+```
+
+#### 5. Configure SSL/TLS (1 hour)
+
+**Option A: Nginx + Let's Encrypt**
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name yourdomain.com;
+
+    ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+
+    # Backend API
+    location /v1 {
+        proxy_pass http://localhost:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Frontend
+    location / {
+        proxy_pass http://localhost:5173;
+        proxy_set_header Host $host;
+    }
+}
+```
+
+**Option B: Caddy (automatic HTTPS)**
+```caddyfile
+yourdomain.com {
+    reverse_proxy /v1/* localhost:8000
+    reverse_proxy /* localhost:5173
+}
+```
+
+#### 6. Start Services (10 minutes)
+
+**Backend:**
+```bash
+# Create systemd service
+sudo nano /etc/systemd/system/feature-auth.service
+```
+```ini
+[Unit]
+Description=Feature Auth Backend
+After=network.target postgresql.service redis.service
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/path/to/project
+Environment="PATH=/path/to/project/.venv/bin"
+ExecStart=/path/to/project/.venv/bin/uvicorn backend.app:app --host 0.0.0.0 --port 8000 --workers 4
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**Celery Worker (for emails):**
+```bash
+sudo nano /etc/systemd/system/feature-auth-celery.service
+```
+```ini
+[Unit]
+Description=Feature Auth Celery Worker
+After=network.target redis.service
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/path/to/project
+Environment="PATH=/path/to/project/.venv/bin"
+ExecStart=/path/to/project/.venv/bin/celery -A backend.auth.email.tasks worker --loglevel=info
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**Start all services:**
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable feature-auth feature-auth-celery
+sudo systemctl start feature-auth feature-auth-celery
+sudo systemctl status feature-auth feature-auth-celery
+```
+
+**Frontend (Production Build):**
+```bash
+cd frontend
+npm run build
+# Serve dist/ with nginx or another static file server
+```
+
+### Post-Deployment (Testing)
+
+#### 7. Smoke Tests (15 minutes)
+```bash
+# Test health endpoint
+curl https://yourdomain.com/health
+
+# Test registration
+curl -X POST https://yourdomain.com/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"TestPassword123!","captchaToken":"<real-turnstile-token>"}'
+
+# Check email was sent (check SMTP logs)
+
+# Test login
+curl -X POST https://yourdomain.com/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@yourdomain.com","password":"<admin-password>"}'
+```
+
+#### 8. Security Verification (30 minutes)
+- [ ] HTTPS working (check https://www.ssllabs.com/ssltest/)
+- [ ] Security headers present (check with curl -I)
+- [ ] CORS configured correctly
+- [ ] Rate limiting working (try 10 failed logins)
+- [ ] Session binding working (try using token from different IP)
+- [ ] Admin endpoints require ADMIN role
+
+#### 9. Monitoring Setup (1 hour)
+```bash
+# Prometheus scraping
+# Add target to prometheus.yml:
+scrape_configs:
+  - job_name: 'feature-auth'
+    static_configs:
+      - targets: ['localhost:8000']
+
+# Grafana dashboard
+# Import dashboard from infra/grafana/dashboard.json
+
+# Set up alerts
+# See infra/prometheus/alerts.yml
+```
+
+#### 10. Backup Configuration (30 minutes)
+```bash
+# PostgreSQL backup
+pg_dump -U feature_user feature_frontend > backup.sql
+
+# Automated daily backups
+sudo nano /etc/cron.daily/postgres-backup
+```
+```bash
+#!/bin/bash
+pg_dump -U feature_user feature_frontend | gzip > /backups/feature-frontend-$(date +%Y%m%d).sql.gz
+find /backups -name "feature-frontend-*.sql.gz" -mtime +30 -delete
+```
+
+### Final Checklist
+
+- [ ] All secrets generated and updated in .env
+- [ ] PostgreSQL running and migrations applied
+- [ ] Redis running
+- [ ] SMTP configured and test email sent
+- [ ] Turnstile production keys configured
+- [ ] SSL/TLS certificates installed
+- [ ] Backend service running (systemd)
+- [ ] Celery worker running (systemd)
+- [ ] Frontend built and deployed
+- [ ] Smoke tests passing
+- [ ] Security verification complete
+- [ ] Monitoring configured (Prometheus + Grafana)
+- [ ] Backups configured
+- [ ] Admin account accessible
+- [ ] Documentation reviewed
+
+### Estimated Total Time: 6-8 hours
+
+---
+
+## 🚨 Common Deployment Issues
+
+### Issue: Backend 500 errors on startup
+**Solution:** Check that all required env vars are set. Missing `DATABASE_URL`, `REDIS_URL`, `JWT_JWK_CURRENT` will cause crashes.
+
+### Issue: Emails not sending
+**Solution:**
+1. Check Celery worker is running: `systemctl status feature-auth-celery`
+2. Check SMTP credentials in .env
+3. Check email logs: `journalctl -u feature-auth-celery -f`
+
+### Issue: Frontend can't reach backend
+**Solution:**
+1. Check Vite proxy configured (only for dev)
+2. For production, ensure reverse proxy (Nginx/Caddy) routes `/v1` to backend
+3. Check CORS settings in backend/app.py
+
+### Issue: Turnstile always fails
+**Solution:** Make sure you're using production site key in frontend and production secret key in backend. Test keys only work on localhost.
+
+### Issue: Database migrations fail
+**Solution:**
+1. Ensure PostgreSQL is running
+2. Check database user has CREATE TABLE permissions
+3. Run with verbose output: `alembic upgrade head --sql` to see SQL
+
+---
+
+## 📞 Support
+
+For deployment issues:
+1. Check logs: `journalctl -u feature-auth -f`
+2. Check backend error logs
+3. Review docs/DEPLOYMENT.md
+4. Review docs/CONFIGURATION.md

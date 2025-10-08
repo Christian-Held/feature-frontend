@@ -42,7 +42,7 @@ def _build_verification_token(record: EmailVerification, *, secret: str) -> str:
 
 
 def _verification_url(token: str, *, settings: AppConfig) -> str:
-    return f"{settings.api_base_url}/v1/auth/verify-email?token={token}"
+    return f"{settings.frontend_base_url}/verify-email?token={token}"
 
 
 def _store_token_hash(record: EmailVerification, *, secret: str) -> None:

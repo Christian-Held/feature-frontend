@@ -15,7 +15,11 @@ from backend.db import models  # noqa: F401
 settings = get_settings()
 config = context.config
 if config.config_ini_section is not None:
-    config.set_main_option("sqlalchemy.url", settings.database_url.unicode_string())
+    # Handle both string and PostgresDsn types
+    db_url = settings.database_url
+    if hasattr(db_url, 'unicode_string'):
+        db_url = db_url.unicode_string()
+    config.set_main_option("sqlalchemy.url", str(db_url))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

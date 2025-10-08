@@ -48,9 +48,6 @@ def configure_logging(settings: AppConfig) -> None:
 
     timestamper = structlog.processors.TimeStamper(fmt="iso", utc=True)
     processors = [
-        structlog.stdlib.filter_by_level,
-        structlog.stdlib.add_logger_name,
-        structlog.stdlib.add_log_level,
         timestamper,
         RedactingProcessor(settings.log_redact_fields),
         _request_context_processor,
@@ -59,15 +56,16 @@ def configure_logging(settings: AppConfig) -> None:
         structlog.processors.JSONRenderer(),
     ]
 
+    # Convert log level string to logging level constant
+    log_level_num = getattr(logging, settings.log_level.upper(), logging.INFO)
+
     structlog.configure(
         processors=processors,
-        wrapper_class=structlog.make_filtering_bound_logger(
-            logging.getLevelName(settings.log_level)
-        ),
+        wrapper_class=structlog.make_filtering_bound_logger(log_level_num),
         cache_logger_on_first_use=True,
     )
 
-    logging.basicConfig(level=settings.log_level)
+    logging.basicConfig(level=log_level_num)
 
 
 def _request_context_processor(logger, method_name, event_dict):  # type: ignore[override]

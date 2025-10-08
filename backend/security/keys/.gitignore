@@ -1,0 +1,3 @@
+# Never commit JWT private keys to git
+*.json
+!.gitignore

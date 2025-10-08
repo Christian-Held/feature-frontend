@@ -10,6 +10,10 @@ from app.agents.prompts import parse_agents_file
 
 from .routers import context_api, events, files, health, jobs, memory, settings, tasks
 
+from dotenv import load_dotenv
+load_dotenv()
+
+
 logger = get_logger(__name__)
 
 

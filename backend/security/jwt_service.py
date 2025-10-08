@@ -36,7 +36,23 @@ def _load_jwk(
     require_private: bool,
 ) -> JWKMaterial:
     if isinstance(data, str):
-        jwk_dict = json.loads(data)
+        # Check if it's a file path
+        if data.endswith('.json'):
+            from pathlib import Path
+            file_path = Path(data)
+            if file_path.exists():
+                jwk_dict = json.loads(file_path.read_text())
+            else:
+                # Try relative to project root
+                project_root = Path(__file__).parent.parent.parent
+                file_path = project_root / data
+                if file_path.exists():
+                    jwk_dict = json.loads(file_path.read_text())
+                else:
+                    raise FileNotFoundError(f"JWK file not found: {data}")
+        else:
+            # It's inline JSON
+            jwk_dict = json.loads(data)
     else:
         jwk_dict = data
     kid = jwk_dict.get("kid")

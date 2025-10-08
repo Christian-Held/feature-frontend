@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 
 from backend.auth.api.deps import require_current_user
 from backend.auth.schemas import (
+    ForgotPasswordRequest,
+    ForgotPasswordResponse,
     LoginRequest,
     LoginResponse,
     LogoutResponse,
@@ -20,6 +22,8 @@ from backend.auth.schemas import (
     RegistrationResponse,
     ResendVerificationRequest,
     ResendVerificationResponse,
+    ResetPasswordRequest,
+    ResetPasswordResponse,
     TwoFADisableRequest,
     TwoFADisableResponse,
     TwoFAEnableCompleteRequest,
@@ -249,6 +253,62 @@ async def recovery_login_endpoint(
     )
     logger.info("api.recovery_login.completed", email=payload.email)
     return response
+
+
+@router.get("/me")
+async def get_current_user_endpoint(
+    current_user: User = Depends(require_current_user),
+):
+    """Get current authenticated user information."""
+    return {
+        "id": str(current_user.id),
+        "email": current_user.email,
+        "status": current_user.status,
+        "mfaEnabled": current_user.mfa_enabled,
+        "emailVerified": current_user.email_verified_at is not None,
+        "roles": [role.role for role in current_user.roles] if current_user.roles else [],
+    }
+
+
+@router.post("/forgot-password", response_model=ForgotPasswordResponse)
+async def forgot_password_endpoint(
+    payload: ForgotPasswordRequest,
+    request: Request,
+    session: Session = Depends(get_db),
+    settings: AppConfig = Depends(get_settings),
+):
+    """Request a password reset email."""
+    from backend.auth.service.password_reset_service import request_password_reset
+
+    message = await request_password_reset(
+        session=session,
+        email=payload.email,
+        settings=settings,
+        remote_ip=_client_ip(request),
+    )
+    session.commit()
+    logger.info("api.forgot_password.requested", email=payload.email)
+    return ForgotPasswordResponse(message=message)
+
+
+@router.post("/reset-password", response_model=ResetPasswordResponse)
+async def reset_password_endpoint(
+    payload: ResetPasswordRequest,
+    session: Session = Depends(get_db),
+    settings: AppConfig = Depends(get_settings),
+):
+    """Reset password using a token."""
+    from backend.auth.service.password_reset_service import complete_password_reset
+
+    await complete_password_reset(
+        session=session,
+        token=payload.token,
+        new_password=payload.password.get_secret_value(),
+        settings=settings,
+    )
+    session.commit()
+    logger.info("api.reset_password.completed")
+    return ResetPasswordResponse(message="Dein Passwort wurde erfolgreich zurückgesetzt.")
 
 
 __all__ = ["router"]

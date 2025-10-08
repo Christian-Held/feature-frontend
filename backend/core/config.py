@@ -6,21 +6,28 @@ import json
 from functools import lru_cache
 from typing import Dict, List
 
-from pydantic import Field, PostgresDsn, computed_field, field_validator
+from pydantic import Field, computed_field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from pathlib import Path
 
 
 class AppConfig(BaseSettings):
     """Centralized application settings loaded from environment variables."""
 
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", case_sensitive=False
+        env_file="backend/.env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+        env_ignore_empty=True,
+        env_prefix="",
     )
 
     environment: str = Field(default="development", validation_alias="ENVIRONMENT")
     debug: bool = Field(default=False, validation_alias="DEBUG")
 
-    database_url: PostgresDsn = Field(validation_alias="DATABASE_URL")
+    database_url: str = Field(validation_alias="DATABASE_URL")
     database_echo: bool = Field(default=False, validation_alias="DATABASE_ECHO")
 
     redis_url: str = Field(validation_alias="REDIS_URL")
@@ -113,6 +120,15 @@ class AppConfig(BaseSettings):
     smtp_host: str = Field(default="localhost", validation_alias="SMTP_HOST")
     smtp_port: int = Field(default=587, validation_alias="SMTP_PORT")
     smtp_use_tls: bool = Field(default=True, validation_alias="SMTP_USE_TLS")
+    smtp_user: str | None = Field(default=None, validation_alias="SMTP_USER")
+    smtp_pass: str | None = Field(default=None, validation_alias="SMTP_PASS")
+
+    @field_validator("log_level", mode="before")
+    @classmethod
+    def _uppercase_log_level(cls, value):
+        if isinstance(value, str):
+            return value.upper()
+        return value
 
     @field_validator("rate_limit_allowlist", "rate_limit_denylist", mode="before")
     @classmethod
@@ -139,9 +155,17 @@ class AppConfig(BaseSettings):
 
 @lru_cache(maxsize=1)
 def get_settings() -> AppConfig:
-    """Return a cached instance of the application settings."""
+    """Return a cached instance of the application settings.
 
-    return AppConfig()
+    Always load .env from backend/.env, ignoring any .env in project root.
+    This ensures the backend config is isolated from other project configs.
+    """
+    # Get the project root (parent of backend/)
+    project_root = Path(__file__).parent.parent.parent
+    env_file = project_root / "backend" / ".env"
+
+    # Only load from backend/.env, not from root .env
+    return AppConfig(_env_file=str(env_file))
 
 
 __all__ = ["AppConfig", "get_settings"]

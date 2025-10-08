@@ -191,7 +191,7 @@ export const authApi = {
     const response = await fetch('/v1/auth/reset-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, newPassword }),
+      body: JSON.stringify({ token, password: newPassword }),
     })
     if (!response.ok) {
       const error = await response.json()

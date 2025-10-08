@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { authApi } from '../../lib/authApi'
 import { ERROR_MESSAGES, TURNSTILE_SITE_KEY } from '../../lib/constants'
+import { formatApiError } from '../../lib/errorHandler'
 
 export function RegisterPage() {
   const [email, setEmail] = useState('')
@@ -53,7 +54,7 @@ export function RegisterPage() {
       if (err.status === 409) {
         setError('An account with this email already exists.')
       } else {
-        setError(err.detail || 'Registration failed. Please try again.')
+        setError(formatApiError(err, 'Registration failed. Please try again.'))
       }
     } finally {
       setIsLoading(false)

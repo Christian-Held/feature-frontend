@@ -14,7 +14,11 @@ from backend.db.base import Base
 
 def _create_engine():
     settings = get_settings()
-    return create_engine(settings.database_url.unicode_string(), echo=settings.database_echo, pool_pre_ping=True, future=True)
+    # Handle both string and PostgresDsn types
+    db_url = settings.database_url
+    if hasattr(db_url, 'unicode_string'):
+        db_url = db_url.unicode_string()
+    return create_engine(str(db_url), echo=settings.database_echo, pool_pre_ping=True, future=True)
 
 
 engine = _create_engine()

@@ -33,4 +33,27 @@ def render_verification_email(verification_url: str) -> EmailContent:
     return EmailContent(subject=subject, text_body=text_body, html_body=html_body)
 
 
-__all__ = ["EmailContent", "render_verification_email"]
+def render_password_reset_email(reset_url: str) -> EmailContent:
+    """Create the email content for password reset."""
+
+    subject = "Passwort zurücksetzen"
+    text_body = (
+        "Hallo,\n\n"
+        "Du hast angefordert, dein Passwort zurückzusetzen.\n\n"
+        "Bitte setze dein Passwort zurück, indem du den folgenden Link öffnest:\n"
+        f"{reset_url}\n\n"
+        "Dieser Link ist 1 Stunde gültig.\n\n"
+        "Falls du diese Anfrage nicht gestellt hast, ignoriere diese E-Mail einfach.\n"
+    )
+    html_body = (
+        "<p>Hallo,</p>"
+        "<p>Du hast angefordert, dein Passwort zurückzusetzen.</p>"
+        "<p>Bitte setze dein Passwort zurück, indem du auf den folgenden Link klickst:</p>"
+        f'<p><a href="{reset_url}">{reset_url}</a></p>'
+        "<p>Dieser Link ist 1 Stunde gültig.</p>"
+        "<p>Falls du diese Anfrage nicht gestellt hast, ignoriere diese E-Mail einfach.</p>"
+    )
+    return EmailContent(subject=subject, text_body=text_body, html_body=html_body)
+
+
+__all__ = ["EmailContent", "render_verification_email", "render_password_reset_email"]
