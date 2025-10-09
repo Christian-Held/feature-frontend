@@ -16,6 +16,8 @@ import { ResetPasswordPage } from './pages/auth/ResetPasswordPage'
 import { TwoFactorVerifyPage } from './pages/auth/TwoFactorVerifyPage'
 import { TwoFactorSetupPage } from './pages/auth/TwoFactorSetupPage'
 import PaymentHistoryPage from './pages/billing/PaymentHistoryPage'
+import { WebsitesPage } from './pages/rag/WebsitesPage'
+import { WebsiteDetailPage } from './pages/rag/WebsiteDetailPage'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { Spinner } from './components/ui/Spinner'
 
@@ -115,6 +117,22 @@ export function App() {
           element={
             <ProtectedRoute>
               <PaymentHistoryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/rag/websites"
+          element={
+            <ProtectedRoute>
+              <WebsitesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/rag/websites/:websiteId"
+          element={
+            <ProtectedRoute>
+              <WebsiteDetailPage />
             </ProtectedRoute>
           }
         />

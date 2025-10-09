@@ -42,6 +42,7 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     usage_records: Mapped[list["UserUsage"]] = relationship("UserUsage", back_populates="user")
     payment_transactions: Mapped[list["PaymentTransaction"]] = relationship("PaymentTransaction", back_populates="user")
     audit_events: Mapped[list["AuditEvent"]] = relationship("AuditEvent", back_populates="actor", foreign_keys="[AuditEvent.actor_id]")
+    rag_websites: Mapped[list["Website"]] = relationship("Website", back_populates="user")
 
 
 class EmailVerification(UUIDPrimaryKeyMixin, TimestampMixin, Base):

@@ -16,6 +16,13 @@ from backend.db.models.user import (
     UserRole,
     UserStatus,
 )
+from backend.rag.models import (
+    Website,
+    WebsitePage,
+    CustomQA,
+    Conversation,
+    UsageStat,
+)
 
 __all__ = [
     "AuditLog",
@@ -36,4 +43,9 @@ __all__ = [
     "User",
     "UserRole",
     "UserStatus",
+    "Website",
+    "WebsitePage",
+    "CustomQA",
+    "Conversation",
+    "UsageStat",
 ]

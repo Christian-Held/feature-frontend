@@ -17,6 +17,7 @@ export function ResetPasswordPage() {
   const navigate = useNavigate()
 
   const token = searchParams.get('token')
+  const passwordStrength = getPasswordStrength(password)
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -121,6 +122,27 @@ export function ResetPasswordPage() {
             placeholder="Minimum 10 characters"
             disabled={isLoading}
           />
+          {password && (
+            <div className="mt-2">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="flex-1 h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                  <div
+                    className={`h-full transition-all ${
+                      passwordStrength === 'weak'
+                        ? 'w-1/3 bg-red-500'
+                        : passwordStrength === 'medium'
+                        ? 'w-2/3 bg-yellow-500'
+                        : 'w-full bg-emerald-500'
+                    }`}
+                  />
+                </div>
+                <span className="text-xs text-slate-400 capitalize">{passwordStrength}</span>
+              </div>
+              <p className="text-xs text-slate-500">
+                Use a mix of letters, numbers, and symbols for better security
+              </p>
+            </div>
+          )}
         </div>
 
         <div>
@@ -152,4 +174,19 @@ export function ResetPasswordPage() {
       </form>
     </AuthLayout>
   )
+}
+
+function getPasswordStrength(password: string): 'weak' | 'medium' | 'strong' {
+  if (password.length < 10) return 'weak'
+
+  let score = 0
+  if (password.length >= 12) score++
+  if (/[a-z]/.test(password)) score++
+  if (/[A-Z]/.test(password)) score++
+  if (/[0-9]/.test(password)) score++
+  if (/[^a-zA-Z0-9]/.test(password)) score++
+
+  if (score <= 2) return 'weak'
+  if (score <= 4) return 'medium'
+  return 'strong'
 }
