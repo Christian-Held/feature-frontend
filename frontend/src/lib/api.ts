@@ -1,3 +1,6 @@
+import { authApi } from './authApi'
+import { useAuthStore } from '../stores/authStore'
+
 export type JobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 
 export interface EnvVariable {
@@ -184,9 +187,33 @@ export class ApiError extends Error {
 
 export class ApiClient {
   private readonly baseUrl: string
+  private refreshPromise: Promise<boolean> | null = null
 
   constructor(baseUrl = import.meta.env.VITE_API_BASE_URL ?? '') {
     this.baseUrl = baseUrl.replace(/\/$/, '')
+  }
+
+  private getAccessToken(): string | null {
+    try {
+      const state = useAuthStore.getState()
+      if (state?.accessToken) {
+        return state.accessToken
+      }
+    } catch (error) {
+      // Ignore store access issues (e.g. tests without providers)
+    }
+
+    try {
+      const authState = localStorage.getItem('auth-storage')
+      if (authState) {
+        const parsed = JSON.parse(authState)
+        return parsed?.state?.accessToken ?? null
+      }
+    } catch (error) {
+      // Ignore errors reading persisted auth state
+    }
+
+    return null
   }
 
   private get headers(): HeadersInit {
@@ -194,33 +221,37 @@ export class ApiClient {
       'Content-Type': 'application/json',
     }
 
-    // Add Authorization header if we have an access token
-    // Import dynamically to avoid circular dependencies
-    try {
-      const authState = localStorage.getItem('auth-storage')
-      if (authState) {
-        const parsed = JSON.parse(authState)
-        if (parsed?.state?.accessToken) {
-          headers['Authorization'] = `Bearer ${parsed.state.accessToken}`
-        }
-      }
-    } catch (e) {
-      // Ignore errors reading auth state
+    const accessToken = this.getAccessToken()
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`
     }
 
     return headers
   }
 
-  private async requestRaw(path: string, options: RequestOptions = {}): Promise<Response> {
+  private async requestRaw(
+    path: string,
+    options: RequestOptions = {},
+    attempt = 0,
+  ): Promise<Response> {
     const baseHeaders = options.body instanceof FormData ? {} : this.headers
 
-    return fetch(`${this.baseUrl}${path}`, {
+    const response = await fetch(`${this.baseUrl}${path}`, {
       ...options,
       headers: {
         ...baseHeaders,
         ...options.headers,
       },
     })
+
+    if (response.status === 401 && options.skipAuth !== true && attempt === 0) {
+      const refreshed = await this.tryRefreshToken()
+      if (refreshed) {
+        return this.requestRaw(path, options, attempt + 1)
+      }
+    }
+
+    return response
   }
 
   async requestWithMetadata<T>(path: string, options: RequestOptions = {}): Promise<{ data: T; status: number; warning?: string }>
@@ -458,6 +489,41 @@ export class ApiClient {
     return this.requestRaw(`/v1/admin/audit-logs/export?${query}`, {
       headers: { Accept: 'text/csv' },
     });
+  }
+
+  private async performTokenRefresh(): Promise<boolean> {
+    try {
+      const state = useAuthStore.getState()
+      const refreshToken = state?.refreshToken
+
+      if (!refreshToken) {
+        state?.clearAuth?.()
+        return false
+      }
+
+      const refreshed = await authApi.refresh(refreshToken)
+      state.setTokens(refreshed.accessToken, refreshed.refreshToken)
+      return true
+    } catch (error) {
+      try {
+        useAuthStore.getState().clearAuth()
+      } catch (e) {
+        // Ignore if store is unavailable
+      }
+      return false
+    }
+  }
+
+  private async tryRefreshToken(): Promise<boolean> {
+    if (!this.refreshPromise) {
+      this.refreshPromise = this.performTokenRefresh()
+    }
+
+    try {
+      return await this.refreshPromise
+    } finally {
+      this.refreshPromise = null
+    }
   }
 
   get websocketUrl() {
