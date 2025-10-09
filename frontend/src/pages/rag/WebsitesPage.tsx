@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
 import { Modal } from '../../components/ui/Modal'
 import { Input } from '../../components/ui/Input'
+import { Progress } from '../../components/ui/Progress'
 import { useWebsites, useCreateWebsite, useDeleteWebsite } from '../../features/rag/hooks'
 import type { Website, WebsiteCreate } from '../../features/rag/api'
 import { ApiError } from '../../lib/api'
@@ -33,10 +34,43 @@ export function WebsitesPage() {
   })
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
+  const normalizeMaxPages = (value?: number) => {
+    const maxPages = Number.isFinite(value) ? (value as number) : undefined
+    if (maxPages === undefined) {
+      return 100
+    }
+    return Math.min(1000, Math.max(1, Math.trunc(maxPages)))
+  }
+
+  const getCrawlProgress = (website: Website) => {
+    if (website.status === 'READY') {
+      return 100
+    }
+
+    if (website.status === 'ERROR' || website.max_pages <= 0) {
+      return 0
+    }
+
+    const ratio = website.pages_indexed / website.max_pages
+    return Math.max(0, Math.min(100, Math.round(ratio * 100)))
+  }
+
   const handleCreate = async () => {
     setErrorMessage(null)
     try {
-      const website = await createWebsite.mutateAsync(formData)
+      const trimmedUrl = formData.url.trim()
+      if (!trimmedUrl) {
+        setErrorMessage('Please enter a valid website URL.')
+        return
+      }
+
+      const sanitizedMaxPages = normalizeMaxPages(formData.max_pages)
+      const website = await createWebsite.mutateAsync({
+        ...formData,
+        url: trimmedUrl,
+        name: formData.name?.trim() ? formData.name.trim() : undefined,
+        max_pages: sanitizedMaxPages,
+      })
       setIsCreateModalOpen(false)
       setFormData({ url: '', name: '', max_pages: 100 })
       navigate(`/rag/websites/${website.id}`)
@@ -128,6 +162,22 @@ export function WebsitesPage() {
                       {website.crawl_error}
                     </div>
                   )}
+
+                  {(website.status === 'PENDING' || website.status === 'CRAWLING') && (
+                    <div className="mt-4 space-y-2">
+                      <div className="flex items-center justify-between text-xs text-slate-400">
+                        <span>Crawling Progress</span>
+                        <span className="text-slate-200">{getCrawlProgress(website)}%</span>
+                      </div>
+                      <Progress
+                        value={getCrawlProgress(website)}
+                        srLabel={`Crawling progress for ${website.name || website.url}`}
+                      />
+                      <p className="text-xs text-slate-500">
+                        Indexed {website.pages_indexed} of {website.max_pages} pages
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-4 flex gap-2">
@@ -169,7 +219,7 @@ export function WebsitesPage() {
       </div>
 
       <Modal
-        isOpen={isCreateModalOpen}
+        open={isCreateModalOpen}
         onClose={() => {
           setIsCreateModalOpen(false)
           setErrorMessage(null)
@@ -219,8 +269,24 @@ export function WebsitesPage() {
               type="number"
               min="1"
               max="1000"
-              value={formData.max_pages}
-              onChange={(e) => setFormData({ ...formData, max_pages: parseInt(e.target.value) })}
+              value={formData.max_pages ?? ''}
+              onChange={(e) => {
+                const rawValue = e.target.value
+                if (rawValue === '') {
+                  setFormData({ ...formData, max_pages: undefined })
+                  return
+                }
+
+                const parsedValue = parseInt(rawValue, 10)
+                if (Number.isNaN(parsedValue)) {
+                  return
+                }
+
+                setFormData({
+                  ...formData,
+                  max_pages: Math.min(1000, Math.max(1, parsedValue)),
+                })
+              }}
             />
             <p className="mt-1 text-xs text-slate-500">
               Maximum number of pages to index (1-1000)
@@ -241,6 +307,7 @@ export function WebsitesPage() {
                 setIsCreateModalOpen(false)
                 setErrorMessage(null)
               }}
+              type="button"
             >
               Cancel
             </Button>
