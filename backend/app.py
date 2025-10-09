@@ -11,6 +11,7 @@ from backend.billing.api.routes import router as billing_router
 from backend.billing.api.webhooks import router as webhook_router
 from backend.core.config import get_settings
 from backend.health import router as health_router
+from backend.rag.api import router as rag_router
 from backend.subscription.api.routes import router as subscription_router
 from backend.logging import configure_logging
 from backend.middleware import (
@@ -53,6 +54,7 @@ def create_app() -> FastAPI:
     app.include_router(webhook_router)
     app.include_router(account_router)
     app.include_router(admin_router)
+    app.include_router(rag_router)
 
     return app
 

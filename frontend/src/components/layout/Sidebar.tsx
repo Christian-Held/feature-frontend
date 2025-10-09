@@ -1,11 +1,12 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { twMerge } from 'tailwind-merge'
-import { Squares2X2Icon, Cog6ToothIcon, CreditCardIcon, ChartBarIcon, RocketLaunchIcon, BanknotesIcon, ArrowRightOnRectangleIcon, UsersIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline'
+import { Squares2X2Icon, Cog6ToothIcon, CreditCardIcon, ChartBarIcon, RocketLaunchIcon, BanknotesIcon, ArrowRightOnRectangleIcon, UsersIcon, ClipboardDocumentListIcon, ChatBubbleBottomCenterTextIcon } from '@heroicons/react/24/outline'
 import { useAuthStore } from '../../stores/authStore'
 import { useSubscription } from '../../features/subscription/hooks'
 
 const allNavItems = [
   { name: 'Dashboard', to: '/', icon: Squares2X2Icon, requiresPro: false, adminOnly: false },
+  { name: 'AI Assistant', to: '/rag/websites', icon: ChatBubbleBottomCenterTextIcon, requiresPro: false, adminOnly: false },
   { name: 'Subscription', to: '/account/subscription', icon: RocketLaunchIcon, requiresPro: false, adminOnly: false },
   { name: 'Billing', to: '/account/billing', icon: CreditCardIcon, requiresPro: true, adminOnly: false },
   { name: 'Payment History', to: '/billing/history', icon: BanknotesIcon, requiresPro: true, adminOnly: false },

@@ -128,6 +128,11 @@ class AppConfig(BaseSettings):
     stripe_webhook_secret: str = Field(validation_alias="STRIPE_WEBHOOK_SECRET")
     stripe_publishable_key: str = Field(validation_alias="STRIPE_PUBLISHABLE_KEY")
 
+    # RAG Configuration
+    qdrant_url: str | None = Field(default=None, validation_alias="QDRANT_URL")
+    qdrant_api_key: str | None = Field(default=None, validation_alias="QDRANT_API_KEY")
+    openai_api_key: str | None = Field(default=None, validation_alias="OPENAI_API_KEY")
+
     @field_validator("log_level", mode="before")
     @classmethod
     def _uppercase_log_level(cls, value):
