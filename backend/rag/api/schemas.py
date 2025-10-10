@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from typing import List, Dict, Any, Optional
+from uuid import UUID
 from pydantic import BaseModel, Field, HttpUrl
 
 
@@ -31,8 +32,8 @@ class WebsiteUpdate(BaseModel):
 
 
 class WebsiteResponse(BaseModel):
-    id: str
-    user_id: str
+    id: UUID
+    user_id: UUID
     url: str
     name: Optional[str]
     status: str
@@ -73,8 +74,8 @@ class CustomQAUpdate(BaseModel):
 
 
 class CustomQAResponse(BaseModel):
-    id: str
-    website_id: str
+    id: UUID
+    website_id: UUID
     question: str
     answer: str
     priority: int
