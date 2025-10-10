@@ -226,3 +226,21 @@ flowchart TD
   - `ws://<host>/ws/jobs/<job_id>` streamt Events `agent.started`, `agent.completed`, `agent.failed`, `cost.updated`.
 
 Weitere Ressourcen: [README.md](README.md), [DATABASE_MIGRATIONS.md](DATABASE_MIGRATIONS.md).
+
+## Backend-Unification Mission
+
+- **Goal:** Vereinheitliche die zwei FastAPI-Backends (Root-Service auf Port 3000, Backend-Service auf Port 8000) zu einer konsistenten Architektur mit gemeinsamem Deployment-Workflow.
+- **Agents involved:** Planner, Coder, Critic, Verifier.
+- **Execution order:**
+  1. Planner analysiert bestehende Services, erstellt Migrationsplan und identifiziert Integrationspunkte.
+  2. Coder implementiert vereinheitlichte API-Endpunkte, konsolidiert Konfigurationen und aktualisiert Deploymentskripte.
+  3. Critic prüft Codeänderungen, Migrationsschritte und Tests auf Regressionen oder Sicherheitsrisiken.
+  4. Verifier führt End-to-End-Validierung durch, testet Deployment und bestätigt Serviceparität.
+- **Safety rules:**
+  - Lösche den funktionierenden Root-Service erst, nachdem der vereinte Backend-Service verifiziert und stabil ist.
+  - Bewahre Backups und Rollback-Optionen bis zum erfolgreichen Abschluss auf.
+- **Expected success criteria:**
+  - Alle bisherigen Routen und Funktionen sind über den vereinigten Backend-Service erreichbar.
+  - CI/CD-Pipeline deployt nur noch den konsolidierten Service ohne Ausfälle.
+  - Monitoring und Logging spiegeln den neuen Architekturstand wider.
+- **Reference task:** `tasks/refactor_unify_backend.yaml`.
