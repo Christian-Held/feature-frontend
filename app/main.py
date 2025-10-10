@@ -1,6 +1,9 @@
 from __future__ import annotations
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.core.config import get_settings
 from app.core.logging import configure_logging, get_logger
@@ -37,6 +40,26 @@ def create_application() -> FastAPI:
     app.include_router(settings.router)
     app.include_router(files.router)
     app.include_router(events.router)
+
+    static_dir = Path(__file__).parent / "static"
+    static_files_app = StaticFiles(directory=static_dir, check_dir=False)
+    app.mount("/static", static_files_app, name="static")
+
+    @app.get("/{static_file_path:path}", include_in_schema=False)
+    async def serve_public_static(static_file_path: str):
+        if not static_file_path:
+            raise HTTPException(status_code=404)
+
+        requested_path = (static_dir / static_file_path).resolve()
+        try:
+            requested_path.relative_to(static_dir.resolve())
+        except ValueError as exc:  # pragma: no cover - safety guard
+            raise HTTPException(status_code=404) from exc
+
+        if not requested_path.is_file():
+            raise HTTPException(status_code=404)
+
+        return FileResponse(requested_path)
 
     return app
 

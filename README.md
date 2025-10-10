@@ -49,6 +49,33 @@ Auto Dev Orchestrator ist ein FastAPI- und Celery-basiertes Grundgerüst, das au
    uvicorn app.main:app --host 0.0.0.0 --port 3000 --reload
    ```
 
+### Public Widget Hosting
+
+The FastAPI service now exposes static assets from `app/static`. Once the server is running you can fetch the
+chat widget bundle directly at:
+
+```
+http://localhost:3000/widget.js
+```
+
+Verify the asset locally with `curl http://localhost:3000/widget.js`. When testing through Ngrok, start a tunnel with
+`ngrok http 3000` and use the generated HTTPS URL — for example `https://<ngrok-id>.ngrok.io/widget.js`.
+
+To embed the chatbot on any site, drop the script on the page and provide a valid `data-embed-token`:
+
+```html
+<script
+  src="https://<your-domain>/widget.js"
+  data-embed-token="YOUR_EMBED_TOKEN"
+  async
+></script>
+```
+
+The widget renders a floating chat bubble that opens an iframe pointing to `/embed/chat?token=<token>` on the same origin as
+the script. Basic lifecycle hooks are exposed via `window.FeatureFrontendWidget` (`open()`, `close()`, `toggle()`,
+`getState()`, `getToken()`) and custom events dispatched on `window` with the namespace `feature-frontend-widget:*` (`ready`,
+`open`, `close`). See `examples/embed.html` for a complete working example.
+
 ### Frontend Setup (React Dashboard)
 4. Installiere und starte die React-Frontend-Anwendung:
    ```bash

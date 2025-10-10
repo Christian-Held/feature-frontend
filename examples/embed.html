@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Feature Frontend Widget Demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        margin: 0;
+        padding: 2rem;
+        background: #f3f4f6;
+        color: #111827;
+      }
+
+      main {
+        max-width: 720px;
+        margin: 0 auto;
+      }
+
+      pre {
+        background: #111827;
+        color: #f9fafb;
+        padding: 1rem;
+        border-radius: 0.75rem;
+        overflow-x: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Feature Frontend Chat Widget</h1>
+      <p>
+        This page demonstrates how to embed the Feature Frontend chatbot widget in a standalone site. The
+        script tag below loads <code>widget.js</code> from your FastAPI deployment and provides a
+        <code>data-embed-token</code> that authenticates the chat session.
+      </p>
+
+      <pre><code>&lt;script
+  src="http://localhost:3000/widget.js"
+  data-embed-token="demo-token"
+  async&gt;&lt;/script&gt;</code></pre>
+
+      <p>
+        Try clicking the floating chat bubble in the bottom-right corner to open the sandboxed iframe. The iframe points to
+        <code>/embed/chat</code> on the same origin as the script file.
+      </p>
+    </main>
+
+    <script src="http://localhost:3000/widget.js" data-embed-token="demo-token" async></script>
+  </body>
+</html>
