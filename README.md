@@ -41,12 +41,12 @@ Auto Dev Orchestrator ist ein FastAPI- und Celery-basiertes Grundgerüst, das au
 3. Starte API und Worker aus dem Repo-Root:
    - **Windows**: `pwsh -File scripts/run.ps1`
    - **Linux**: `./scripts/run.sh`
-   Die Skripte laden `.env`, protokollieren den ausgewählten Interpreter und starten `uv run uvicorn app.main:app` sowie `uv run celery -A app.workers.celery_app worker -l info`.
+   Die Skripte laden `.env`, protokollieren den ausgewählten Interpreter und starten `uv run uvicorn backend.app:app --port 8000` sowie `uv run celery -A backend.tasks.celery_app worker -l info`.
 
-   **Alternativ (für Development)**: Starte nur den FastAPI-Server auf Port 3000:
+   **Alternativ (für Development)**: Starte nur den FastAPI-Server auf Port 8000:
    ```bash
    source .venv/bin/activate
-   uvicorn app.main:app --host 0.0.0.0 --port 3000 --reload
+   uvicorn backend.app:app --host 0.0.0.0 --port 8000 --reload
    ```
 
 ### Public Widget Hosting
@@ -55,11 +55,11 @@ The FastAPI service now exposes static assets from `app/static`. Once the server
 chat widget bundle directly at:
 
 ```
-http://localhost:3000/widget.js
+http://localhost:8000/widget.js
 ```
 
-Verify the asset locally with `curl http://localhost:3000/widget.js`. When testing through Ngrok, start a tunnel with
-`ngrok http 3000` and use the generated HTTPS URL — for example `https://<ngrok-id>.ngrok.io/widget.js`.
+Verify the asset locally with `curl http://localhost:8000/widget.js`. When testing through Ngrok, start a tunnel with
+`ngrok http 8000` and use the generated HTTPS URL — for example `https://<ngrok-id>.ngrok.io/widget.js`.
 
 To embed the chatbot on any site, drop the script on the page and provide a valid `data-embed-token`:
 
@@ -83,7 +83,7 @@ the script. Basic lifecycle hooks are exposed via `window.FeatureFrontendWidget`
    npm install
    npm run dev
    ```
-   Die Vite Dev-Server läuft auf `http://localhost:5173` und proxied automatisch API-Requests an den Backend-Server auf Port 3000.
+   Die Vite Dev-Server läuft auf `http://localhost:5173` und proxied automatisch API-Requests an den Backend-Server auf Port 8000.
 
 ### Alternative Weboberfläche (Gradio)
 5. Öffne für die Gradio-Weboberfläche ein neues Terminal und starte `uv run python -m webui.app_gradio`. Die UI läuft unabhängig vom Backend und nutzt dieselben REST-Endpunkte.
