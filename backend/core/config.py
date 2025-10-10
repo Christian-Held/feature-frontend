@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import json
 from functools import lru_cache
+from pathlib import Path
 from typing import Dict, List
 
+from dotenv import load_dotenv
 from pydantic import Field, computed_field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-from pathlib import Path
 
 
 class AppConfig(BaseSettings):
@@ -170,12 +170,14 @@ def get_settings() -> AppConfig:
     Always load .env from backend/.env, ignoring any .env in project root.
     This ensures the backend config is isolated from other project configs.
     """
-    # Get the project root (parent of backend/)
     project_root = Path(__file__).parent.parent.parent
-    env_file = project_root / "backend" / ".env"
+    root_env = project_root / ".env"
+    backend_env = project_root / "backend" / ".env"
 
-    # Only load from backend/.env, not from root .env
-    return AppConfig(_env_file=str(env_file))
+    load_dotenv(root_env, override=False)
+    load_dotenv(backend_env, override=False)
+
+    return AppConfig(_env_file=str(backend_env))
 
 
 __all__ = ["AppConfig", "get_settings"]

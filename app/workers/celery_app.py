@@ -1,22 +1,5 @@
-from __future__ import annotations
+"""Legacy compatibility wrapper for the Celery application."""
 
-from celery import Celery
+from backend.tasks.celery_app import celery_app  # re-export
 
-from app.core.config import get_settings
-
-settings = get_settings()
-
-celery_app = Celery(
-    "auto_dev_orchestrator",
-    broker=settings.redis_url,
-    backend=settings.redis_url,
-)
-
-celery_app.conf.task_routes = {
-    "app.workers.job_worker.execute_job": {"queue": "jobs"},
-}
-celery_app.conf.task_default_queue = "jobs"
-celery_app.conf.task_default_exchange = "jobs"
-celery_app.conf.task_default_routing_key = "jobs"
-
-celery_app.autodiscover_tasks(["app.workers"])
+__all__ = ["celery_app"]

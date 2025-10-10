@@ -16,14 +16,14 @@ npm install
 npm run dev
 ```
 
-The development server starts on [http://localhost:5173](http://localhost:5173). The Vite dev server is configured with a proxy that forwards API requests to the backend running on port 3000. You can optionally override the backend URL via `VITE_API_BASE_URL` and the WebSocket endpoint via `VITE_WS_URL` by creating a `.env` file in this directory:
+The development server starts on [http://localhost:5173](http://localhost:5173). The Vite dev server is configured with a proxy that forwards API requests to the backend running on port 8000. You can optionally override the backend URL via `VITE_API_BASE_URL` and the WebSocket endpoint via `VITE_WS_URL` by creating a `.env` file in this directory:
 
 ```bash
-VITE_API_BASE_URL=http://localhost:3000
-VITE_WS_URL=ws://localhost:3000/ws/jobs
+VITE_API_BASE_URL=http://localhost:8000
+VITE_WS_URL=ws://localhost:8000/ws/jobs
 ```
 
-**Note:** When running in development mode (via `npm run dev`), the proxy configuration in `vite.config.ts` handles routing `/api`, `/jobs`, `/tasks`, `/health`, and `/ws` requests to the backend at `http://localhost:3000`.
+**Note:** When running in development mode (via `npm run dev`), the proxy configuration in `vite.config.ts` handles routing `/api`, `/jobs`, `/tasks`, `/health`, and `/ws` requests to the backend at `http://localhost:8000`.
 
 ## Available scripts
 
@@ -49,7 +49,7 @@ Core directories:
 
 ## Backend integration
 
-The frontend consumes the REST API paths defined in `src/lib/api.ts` and automatically derives the WebSocket endpoint. When running in development mode, requests are proxied through the Vite dev server to the backend on port 3000. Live job updates are merged into the React Query cache so the queue stays in sync with backend events.
+The frontend consumes the REST API paths defined in `src/lib/api.ts` and automatically derives the WebSocket endpoint. When running in development mode, requests are proxied through the Vite dev server to the backend on port 8000. Live job updates are merged into the React Query cache so the queue stays in sync with backend events.
 
 ## Testing checklist
 
