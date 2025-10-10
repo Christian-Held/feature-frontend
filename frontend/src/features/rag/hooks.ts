@@ -29,6 +29,17 @@ export function useWebsites() {
   return useQuery({
     queryKey: ragKeys.websites(),
     queryFn: listWebsites,
+    refetchInterval: (query) => {
+      const data = query.state.data
+      if (!data || data.length === 0) {
+        return false
+      }
+
+      return data.some((website) => website.status === 'PENDING' || website.status === 'CRAWLING')
+        ? 5000
+        : false
+    },
+    refetchIntervalInBackground: true,
   })
 }
 
@@ -37,6 +48,15 @@ export function useWebsite(websiteId: string) {
     queryKey: ragKeys.website(websiteId),
     queryFn: () => getWebsite(websiteId),
     enabled: !!websiteId,
+    refetchInterval: (query) => {
+      const data = query.state.data
+      if (!data) {
+        return false
+      }
+
+      return data.status === 'READY' || data.status === 'ERROR' ? false : 4000
+    },
+    refetchIntervalInBackground: true,
   })
 }
 

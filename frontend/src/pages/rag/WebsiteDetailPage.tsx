@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { AppShell } from '../../components/layout/AppShell'
 import { Header } from '../../components/layout/Header'
 import { Card, CardDescription, CardHeader, CardTitle } from '../../components/ui/Card'
@@ -9,6 +9,7 @@ import { Badge } from '../../components/ui/Badge'
 import { Modal } from '../../components/ui/Modal'
 import { Input } from '../../components/ui/Input'
 import { TextArea } from '../../components/ui/TextArea'
+import { Progress } from '../../components/ui/Progress'
 import {
   useWebsite,
   useUpdateWebsite,
@@ -32,18 +33,15 @@ export function WebsiteDetailPage() {
   const { websiteId } = useParams<{ websiteId: string }>()
   const navigate = useNavigate()
 
-  if (!websiteId) {
-    navigate('/rag/websites')
-    return null
-  }
+  const resolvedWebsiteId = websiteId ?? ''
 
-  const { data: website, isLoading } = useWebsite(websiteId)
-  const updateWebsite = useUpdateWebsite(websiteId)
-  const triggerCrawl = useTriggerCrawl(websiteId)
-  const { data: qas } = useCustomQAs(websiteId)
-  const createQA = useCreateCustomQA(websiteId)
-  const deleteQA = useDeleteCustomQA(websiteId)
-  const { data: analytics } = useAnalytics(websiteId)
+  const { data: website, isLoading } = useWebsite(resolvedWebsiteId)
+  const updateWebsite = useUpdateWebsite(resolvedWebsiteId)
+  const triggerCrawl = useTriggerCrawl(resolvedWebsiteId)
+  const { data: qas } = useCustomQAs(resolvedWebsiteId)
+  const createQA = useCreateCustomQA(resolvedWebsiteId)
+  const deleteQA = useDeleteCustomQA(resolvedWebsiteId)
+  const { data: analytics } = useAnalytics(resolvedWebsiteId)
 
   const [activeTab, setActiveTab] = useState<'overview' | 'qas' | 'analytics' | 'embed'>('overview')
   const [isQAModalOpen, setIsQAModalOpen] = useState(false)
@@ -54,6 +52,23 @@ export function WebsiteDetailPage() {
   })
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  const normalizePriority = (value?: number) => {
+    if (value === undefined) {
+      return undefined
+    }
+    return Math.min(1000, Math.max(0, Math.trunc(value)))
+  }
+
+  const getCrawlProgress = (site: Website) => {
+    if (site.status === 'READY') {
+      return 100
+    }
+    if (site.status === 'ERROR' || site.max_pages <= 0) {
+      return 0
+    }
+    return Math.max(0, Math.min(100, Math.round((site.pages_indexed / site.max_pages) * 100)))
+  }
 
   const handleCrawl = async () => {
     try {
@@ -81,7 +96,24 @@ export function WebsiteDetailPage() {
   const handleCreateQA = async () => {
     setErrorMessage(null)
     try {
-      await createQA.mutateAsync(qaFormData)
+      const trimmedQuestion = qaFormData.question.trim()
+      const trimmedAnswer = qaFormData.answer.trim()
+
+      if (!trimmedQuestion || !trimmedAnswer) {
+        setErrorMessage('Question and answer are required.')
+        return
+      }
+
+      const payload: CustomQACreate = {
+        ...qaFormData,
+        question: trimmedQuestion,
+        answer: trimmedAnswer,
+        priority: normalizePriority(qaFormData.priority),
+        category: qaFormData.category?.trim() || undefined,
+        keywords: qaFormData.keywords?.trim() || undefined,
+      }
+
+      await createQA.mutateAsync(payload)
       setIsQAModalOpen(false)
       setQAFormData({ question: '', answer: '', priority: 100 })
       setSuccessMessage('Q&A created successfully')
@@ -131,6 +163,10 @@ export function WebsiteDetailPage() {
         </div>
       </AppShell>
     )
+  }
+
+  if (!websiteId) {
+    return <Navigate to="/rag/websites" replace />
   }
 
   if (!website) {
@@ -245,6 +281,21 @@ export function WebsiteDetailPage() {
                   <span className="text-white">{website.crawl_frequency}</span>
                 </div>
               </div>
+              {(website.status === 'PENDING' || website.status === 'CRAWLING') && (
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center justify-between text-xs text-slate-400">
+                    <span>Crawling Progress</span>
+                    <span className="text-slate-200">{getCrawlProgress(website)}%</span>
+                  </div>
+                  <Progress
+                    value={getCrawlProgress(website)}
+                    srLabel={`Crawling progress for ${website.name}`}
+                  />
+                  <p className="text-xs text-slate-500">
+                    Indexed {website.pages_indexed} of {website.max_pages} pages
+                  </p>
+                </div>
+              )}
               {website.crawl_error && (
                 <div className="mt-4 rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-300">
                   {website.crawl_error}
@@ -442,7 +493,7 @@ export function WebsiteDetailPage() {
 
       {/* Create Q&A Modal */}
       <Modal
-        isOpen={isQAModalOpen}
+        open={isQAModalOpen}
         onClose={() => {
           setIsQAModalOpen(false)
           setErrorMessage(null)
@@ -490,8 +541,24 @@ export function WebsiteDetailPage() {
               type="number"
               min="0"
               max="1000"
-              value={qaFormData.priority}
-              onChange={(e) => setQAFormData({ ...qaFormData, priority: parseInt(e.target.value) })}
+              value={qaFormData.priority ?? ''}
+              onChange={(e) => {
+                const rawValue = e.target.value
+                if (rawValue === '') {
+                  setQAFormData({ ...qaFormData, priority: undefined })
+                  return
+                }
+
+                const parsedValue = parseInt(rawValue, 10)
+                if (Number.isNaN(parsedValue)) {
+                  return
+                }
+
+                setQAFormData({
+                  ...qaFormData,
+                  priority: Math.min(1000, Math.max(0, parsedValue)),
+                })
+              }}
             />
             <p className="mt-1 text-xs text-slate-500">
               Higher priority Q&As are checked first (default: 100)
@@ -539,6 +606,7 @@ export function WebsiteDetailPage() {
                 setIsQAModalOpen(false)
                 setErrorMessage(null)
               }}
+              type="button"
             >
               Cancel
             </Button>

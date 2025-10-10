@@ -61,6 +61,24 @@ def create_website(
     session.commit()
     session.refresh(website)
 
+    try:
+        _ = crawl_website_task.delay(str(website.id))
+    except Exception as exc:  # pragma: no cover - celery scheduling failure is rare
+        website.status = WebsiteStatus.ERROR
+        website.crawl_error = f"Failed to queue crawl: {exc}"
+        session.commit()
+        session.refresh(website)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Failed to queue website crawl. Please try again.",
+        ) from exc
+
+    # Mark as crawling immediately so the UI can render progress while the task starts
+    website.status = WebsiteStatus.CRAWLING
+    website.crawl_error = None
+    session.commit()
+    session.refresh(website)
+
     return website
 
 
