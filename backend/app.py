@@ -68,15 +68,15 @@ def _configure_cors(app: FastAPI, origins: Iterable[str]) -> None:
 def create_app() -> FastAPI:
     _load_environment_files()
 
-    settings = get_settings()
-    configure_logging(settings)
+    backend_settings = get_settings()
+    configure_logging(backend_settings)
 
     orchestrator_settings = get_orchestrator_settings()
     configure_orchestrator_logging(orchestrator_settings.log_level)
     orchestrator_logger = get_orchestrator_logger(__name__)
 
-    app = FastAPI(title="Feature Platform API", version=settings.service_version)
-    setup_tracing(app, settings)
+    app = FastAPI(title="Feature Platform API", version=backend_settings.service_version)
+    setup_tracing(app, backend_settings)
 
     app.add_middleware(RequestContextMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
@@ -85,11 +85,11 @@ def create_app() -> FastAPI:
     app.add_middleware(
         RateLimiterMiddleware,
         redis=redis_client,
-        requests=settings.rate_limit_default_requests,
-        window_seconds=settings.rate_limit_default_window_seconds,
-        prefix=settings.redis_rate_limit_prefix,
-        allowlist=settings.rate_limit_allowlist,
-        denylist=settings.rate_limit_denylist,
+        requests=backend_settings.rate_limit_default_requests,
+        window_seconds=backend_settings.rate_limit_default_window_seconds,
+        prefix=backend_settings.redis_rate_limit_prefix,
+        allowlist=backend_settings.rate_limit_allowlist,
+        denylist=backend_settings.rate_limit_denylist,
         high_risk_paths=high_risk_paths,
     )
     app.add_middleware(PrometheusRequestMiddleware, excluded_paths={"/metrics"})
