@@ -826,7 +826,7 @@ npm run dev
 **5. Access:**
 - Frontend: http://localhost:5173
 - Auth API Docs: http://localhost:8000/docs
-- Dashboard API Docs: http://localhost:3000/docs
+- Dashboard API Docs: http://localhost:8000/docs
 
 ### VSCode Debugging
 
