@@ -17,7 +17,7 @@ POLL_INTERVAL_SECONDS = 2
 TERMINAL_STATUSES = {"completed", "succeeded", "failed", "timeout", "cancelled", "canceled"}
 
 DEFAULT_SETTINGS: Dict[str, Any] = {
-    "API_BASE_URL": "http://localhost:3000",
+    "API_BASE_URL": "http://localhost:8000",
     "GITHUB_OWNER": "",
     "GITHUB_REPO": "",
     "branch_base": "main",
@@ -374,7 +374,7 @@ def launch_ui() -> None:
             api_base_input = gr.Textbox(
                 label="API Base URL",
                 value=initial["API_BASE_URL"],
-                placeholder="http://localhost:3000",
+                placeholder="http://localhost:8000",
             )
 
         with gr.Accordion("Secrets", open=False):

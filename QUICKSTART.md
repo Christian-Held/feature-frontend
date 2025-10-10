@@ -207,7 +207,7 @@ TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA  # Test key
 ENCRYPTION_KEY=base64-encoded-32-bytes
 
 # CORS
-CORS_ORIGINS=["http://localhost:5173","http://localhost:3000"]
+CORS_ORIGINS=["http://localhost:5173","http://localhost:3000","http://localhost:8000"]
 ```
 
 ### Frontend (.env)
