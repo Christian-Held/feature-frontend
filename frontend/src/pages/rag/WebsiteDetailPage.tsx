@@ -206,6 +206,75 @@ export function WebsiteDetailPage() {
     setAppearanceConfig((prev) => ({ ...prev, [key]: value }))
   }
 
+  const handleResetAppearanceForm = () => {
+    if (!website) {
+      setAppearanceConfig({
+        name: '',
+        brand_color: DEFAULT_BRAND_COLOR,
+        logo_url: '',
+        welcome_message: '',
+        position: 'BOTTOM_RIGHT',
+      })
+      return
+    }
+
+    setAppearanceConfig({
+      name: website.name ?? '',
+      brand_color: website.brand_color ?? DEFAULT_BRAND_COLOR,
+      logo_url: website.logo_url ?? '',
+      welcome_message: website.welcome_message ?? '',
+      position: website.position,
+    })
+  }
+
+  const handleSaveAppearance = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setErrorMessage(null)
+
+    const hexPattern = /^#[0-9A-Fa-f]{6}$/
+    if (appearanceConfig.brand_color && !hexPattern.test(appearanceConfig.brand_color)) {
+      setErrorMessage('Brand color must be a valid hex value, e.g. #2563EB.')
+      return
+    }
+
+    try {
+      await updateWebsite.mutateAsync({
+        name: appearanceConfig.name.trim() || undefined,
+        brand_color: appearanceConfig.brand_color || undefined,
+        logo_url: appearanceConfig.logo_url.trim() || undefined,
+        welcome_message: appearanceConfig.welcome_message.trim() || undefined,
+        position: appearanceConfig.position,
+      })
+      setSuccessMessage('Appearance updated successfully')
+      setTimeout(() => setSuccessMessage(null), 3000)
+    } catch (error) {
+      console.error('Failed to update appearance:', error)
+      setErrorMessage('Failed to save appearance settings.')
+      setTimeout(() => setErrorMessage(null), 5000)
+    }
+  }
+
+  useEffect(() => {
+    if (!website) {
+      return
+    }
+
+    setAppearanceConfig({
+      name: website.name ?? '',
+      brand_color: website.brand_color ?? DEFAULT_BRAND_COLOR,
+      logo_url: website.logo_url ?? '',
+      welcome_message: website.welcome_message ?? '',
+      position: website.position,
+    })
+  }, [website])
+
+  const handleAppearanceFieldChange = <K extends keyof AppearanceFormState>(
+    key: K,
+    value: AppearanceFormState[K],
+  ) => {
+    setAppearanceConfig((prev) => ({ ...prev, [key]: value }))
+  }
+
   const handleResetAppearance = () => {
     if (!website) {
       setAppearanceConfig({
@@ -796,7 +865,7 @@ export function WebsiteDetailPage() {
                 </div>
 
                 <div className="flex justify-end gap-3 pt-2">
-                  <Button type="button" variant="secondary" onClick={handleResetAppearance}>
+                  <Button type="button" variant="secondary" onClick={handleResetAppearanceForm}>
                     Reset
                   </Button>
                   <Button type="submit" disabled={updateWebsite.isPending}>
