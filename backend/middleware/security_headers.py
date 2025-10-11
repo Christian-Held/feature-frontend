@@ -32,6 +32,13 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "no-referrer")
         response.headers.setdefault("Content-Security-Policy", _CSP_VALUE)
+
+        path = request.url.path
+        if path.startswith("/widget") or path.startswith("/v1/rag/chat"):
+            response.headers["Access-Control-Allow-Origin"] = "*"
+            response.headers["Access-Control-Allow-Headers"] = "X-Embed-Token, Content-Type"
+            response.headers["X-Frame-Options"] = "ALLOWALL"
+            response.headers["Content-Security-Policy"] = "frame-ancestors *;"
         return response
 
 
