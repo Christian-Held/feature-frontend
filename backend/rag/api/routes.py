@@ -26,7 +26,8 @@ from backend.rag.api.schemas import (
 from backend.rag.models.website import Website, WebsiteStatus
 from backend.rag.models.custom_qa import CustomQA
 from backend.rag.models.usage_stat import UsageStat
-from backend.rag.tasks.crawl import crawl_website_task
+from backend.core.config import get_settings
+from backend.rag.tasks.crawl import crawl_website_task, run_crawl_inline
 from backend.rag.query import RAGQueryService
 
 router = APIRouter(prefix="/v1/rag", tags=["rag"])
@@ -61,11 +62,18 @@ def create_website(
     session.commit()
     session.refresh(website)
 
+    settings = get_settings()
+    use_celery = settings.rag_task_execution_mode == "celery"
+    crawl_result: dict | None = None
+
     try:
-        _ = crawl_website_task.delay(str(website.id))
+        if use_celery:
+            _ = crawl_website_task.delay(str(website.id))
+        else:
+            crawl_result = run_crawl_inline(str(website.id))
     except Exception as exc:  # pragma: no cover - celery scheduling failure is rare
         website.status = WebsiteStatus.ERROR
-        website.crawl_error = f"Failed to queue crawl: {exc}"
+        website.crawl_error = f"Failed to start crawl: {exc}"
         session.commit()
         session.refresh(website)
         raise HTTPException(
@@ -73,11 +81,19 @@ def create_website(
             detail="Failed to queue website crawl. Please try again.",
         ) from exc
 
-    # Mark as crawling immediately so the UI can render progress while the task starts
-    website.status = WebsiteStatus.CRAWLING
-    website.crawl_error = None
-    session.commit()
-    session.refresh(website)
+    if use_celery:
+        # Mark as crawling immediately so the UI can render progress while the task starts
+        website.status = WebsiteStatus.CRAWLING
+        website.crawl_error = None
+        session.commit()
+        session.refresh(website)
+    else:
+        # Inline crawl already updated website state; refresh to return latest data
+        session.refresh(website)
+        if crawl_result and not crawl_result.get("success", False):
+            website.crawl_error = crawl_result.get("error", "Unknown crawl error")
+            session.commit()
+            session.refresh(website)
 
     return website
 
@@ -208,13 +224,45 @@ def trigger_crawl(
             detail="Crawl already in progress"
         )
 
-    # Trigger async crawl task
-    task = crawl_website_task.delay(str(website.id))
+    settings = get_settings()
+    use_celery = settings.rag_task_execution_mode == "celery"
+
+    if use_celery:
+        try:
+            website.status = WebsiteStatus.CRAWLING
+            website.crawl_error = None
+            session.commit()
+            task = crawl_website_task.delay(str(website.id))
+        except Exception as exc:  # pragma: no cover - rare scheduling failure
+            website.status = WebsiteStatus.ERROR
+            website.crawl_error = f"Failed to start crawl: {exc}"
+            session.commit()
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Failed to queue website crawl. Please try again.",
+            ) from exc
+
+        return CrawlResponse(
+            task_id=task.id,
+            status="pending",
+            message="Crawl task started"
+        )
+
+    crawl_result = run_crawl_inline(str(website.id))
+    session.refresh(website)
+
+    if not crawl_result.get("success", False):
+        error_message = crawl_result.get("error", "Website crawl failed")
+        return CrawlResponse(
+            task_id="inline",
+            status="error",
+            message=error_message
+        )
 
     return CrawlResponse(
-        task_id=task.id,
-        status="pending",
-        message="Crawl task started"
+        task_id="inline",
+        status="completed",
+        message="Crawl completed successfully"
     )
 
 

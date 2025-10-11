@@ -40,7 +40,7 @@ The RAG system enables users to create AI-powered chatbots for their websites. I
    - Batch processing for efficiency
 
 5. **Background Tasks** (`backend/rag/tasks/`)
-   - Celery queue: `rag-crawl`
+   - Inline execution by default with optional Celery queue `rag-crawl`
    - `crawl_website_task`: Crawls website and stores pages
    - `process_page_embeddings_task`: Generates and stores embeddings
 
@@ -78,6 +78,9 @@ QDRANT_API_KEY=
 
 # OpenAI
 OPENAI_API_KEY=your_openai_api_key
+
+# Background task execution (inline | celery)
+RAG_TASK_EXECUTION_MODE=inline
 ```
 
 ## Database Schema
