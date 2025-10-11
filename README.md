@@ -61,6 +61,10 @@ http://localhost:8000/widget.js
 Verify the asset locally with `curl http://localhost:8000/widget.js`. When testing through Ngrok, start a tunnel with
 `ngrok http 8000` and use the generated HTTPS URL — for example `https://<ngrok-id>.ngrok.io/widget.js`.
 
+Set `VITE_WIDGET_BASE_URL` in your frontend environment to the public origin that serves `widget.js`. The embed code
+builder in the dashboard falls back to the dashboard's own origin when this variable is omitted, which is suitable for
+local development but you should configure the explicit production host when deploying.
+
 To embed the chatbot on any site, drop the script on the page and provide a valid `data-embed-token`:
 
 ```html

@@ -132,6 +132,9 @@ class AppConfig(BaseSettings):
     qdrant_url: str | None = Field(default=None, validation_alias="QDRANT_URL")
     qdrant_api_key: str | None = Field(default=None, validation_alias="QDRANT_API_KEY")
     openai_api_key: str | None = Field(default=None, validation_alias="OPENAI_API_KEY")
+    rag_task_execution_mode: str = Field(
+        default="inline", validation_alias="RAG_TASK_EXECUTION_MODE"
+    )
 
     @field_validator("log_level", mode="before")
     @classmethod
@@ -157,6 +160,20 @@ class AppConfig(BaseSettings):
         if isinstance(value, str):
             return json.loads(value)
         return value
+
+    @field_validator("rag_task_execution_mode", mode="before")
+    @classmethod
+    def _validate_task_execution_mode(cls, value):
+        if value is None or value == "":
+            return "inline"
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized not in {"inline", "celery"}:
+                raise ValueError(
+                    "RAG_TASK_EXECUTION_MODE must be either 'inline' or 'celery'"
+                )
+            return normalized
+        raise ValueError("Invalid RAG_TASK_EXECUTION_MODE value")
 
     @computed_field
     def jwt_access_ttl_minutes(self) -> int:

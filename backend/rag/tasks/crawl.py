@@ -5,8 +5,7 @@ from datetime import datetime
 import uuid
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
-
+from backend.core.config import get_settings
 from backend.db.session import SessionLocal
 from backend.rag.models.website import Website, WebsiteStatus
 from backend.rag.models.website_page import WebsitePage
@@ -31,11 +30,25 @@ def crawl_website_task(website_id: str) -> dict:
     return asyncio.run(_crawl_website_async(website_id))
 
 
-async def _crawl_website_async(website_id: str) -> dict:
+def run_crawl_inline(website_id: str) -> dict:
+    """Execute a crawl synchronously within the API process."""
+
+    return asyncio.run(_crawl_website_async(website_id, use_celery_embeddings=False))
+
+
+async def _crawl_website_async(
+    website_id: str, *, use_celery_embeddings: bool | None = None
+) -> dict:
     """Async implementation of website crawl."""
     session = SessionLocal()
 
     try:
+        settings = get_settings()
+        if use_celery_embeddings is None:
+            use_celery_embeddings = (
+                settings.rag_task_execution_mode == "celery"
+            )
+
         # Fetch website
         result = session.execute(
             select(Website).where(Website.id == uuid.UUID(website_id))
@@ -83,7 +96,10 @@ async def _crawl_website_async(website_id: str) -> dict:
                     pages_updated += 1
 
                     # Trigger embedding update
-                    process_page_embeddings_task.delay(str(existing_page.id))
+                    if use_celery_embeddings:
+                        process_page_embeddings_task.delay(str(existing_page.id))
+                    else:
+                        await _process_page_embeddings_async(str(existing_page.id))
             else:
                 # Create new page
                 new_page = WebsitePage(
@@ -100,7 +116,10 @@ async def _crawl_website_async(website_id: str) -> dict:
                 pages_created += 1
 
                 # Trigger embedding generation
-                process_page_embeddings_task.delay(str(new_page.id))
+                if use_celery_embeddings:
+                    process_page_embeddings_task.delay(str(new_page.id))
+                else:
+                    await _process_page_embeddings_async(str(new_page.id))
 
         # Update website status
         website.status = WebsiteStatus.READY
@@ -196,4 +215,4 @@ async def _process_page_embeddings_async(page_id: str) -> dict:
         session.close()
 
 
-__all__ = ["crawl_website_task", "process_page_embeddings_task"]
+__all__ = ["crawl_website_task", "process_page_embeddings_task", "run_crawl_inline"]

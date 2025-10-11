@@ -29,6 +29,7 @@ from backend.observability import (
     metrics_router,
     setup_tracing,
 )
+from backend.embed import router as embed_router
 from backend.rag.api import router as rag_router
 from backend.redis.client import get_redis_client
 from backend.subscription.api.routes import router as subscription_router
@@ -114,6 +115,7 @@ def create_app() -> FastAPI:
     app.include_router(account_router)
     app.include_router(admin_router)
     app.include_router(rag_router)
+    app.include_router(embed_router)
 
     # Legacy orchestrator routers
     app.include_router(orchestrator_health_router)
