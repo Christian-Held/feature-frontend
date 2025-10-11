@@ -335,14 +335,14 @@ def delete_custom_qa(
 @router.post("/chat", response_model=ChatResponse)
 async def chat(
     chat_request: ChatRequest,
-    authorization: str = Header(..., alias="X-Embed-Token"),
+    embed_token: str = Header(..., alias="X-Embed-Token"),
     session: Session = Depends(get_db),
 ):
     """Public chat endpoint for embedded widget (token-based auth)."""
     # Find website by embed token
     result = session.execute(
         select(Website).where(
-            Website.embed_token == authorization,
+            Website.embed_token == embed_token,
             Website.is_active == True
         )
     )

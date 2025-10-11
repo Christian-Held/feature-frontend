@@ -669,6 +669,7 @@ export function WebsiteDetailPage() {
                 logoUrl={appearanceConfig.logo_url || undefined}
                 welcomeMessage={appearanceConfig.welcome_message || website.welcome_message || 'How can I help you today?'}
                 position={appearanceConfig.position}
+                token={website.embed_token}
               />
             </Card>
           </div>
