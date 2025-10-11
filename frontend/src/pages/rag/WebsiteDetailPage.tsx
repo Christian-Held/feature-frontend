@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { AppShell } from '../../components/layout/AppShell'
 import { Header } from '../../components/layout/Header'
@@ -10,6 +10,7 @@ import { Modal } from '../../components/ui/Modal'
 import { Input } from '../../components/ui/Input'
 import { TextArea } from '../../components/ui/TextArea'
 import { Progress } from '../../components/ui/Progress'
+import { ChatPreview } from '../../components/rag/ChatPreview'
 import {
   useWebsite,
   useUpdateWebsite,
@@ -19,7 +20,7 @@ import {
   useDeleteCustomQA,
   useAnalytics,
 } from '../../features/rag/hooks'
-import type { CustomQACreate, Website } from '../../features/rag/api'
+import type { CustomQACreate, Website, WidgetPosition } from '../../features/rag/api'
 import { ApiError } from '../../lib/api'
 
 const STATUS_COLORS: Record<Website['status'], string> = {
@@ -27,6 +28,23 @@ const STATUS_COLORS: Record<Website['status'], string> = {
   CRAWLING: 'bg-blue-500/20 text-blue-300',
   READY: 'bg-emerald-500/20 text-emerald-300',
   ERROR: 'bg-red-500/20 text-red-300',
+}
+
+const DEFAULT_BRAND_COLOR = '#2563eb'
+
+type AppearanceFormState = {
+  name: string
+  brand_color: string
+  logo_url: string
+  welcome_message: string
+  position: WidgetPosition
+}
+
+const POSITION_OPTIONS: Record<WidgetPosition, string> = {
+  BOTTOM_RIGHT: 'Bottom Right',
+  BOTTOM_LEFT: 'Bottom Left',
+  TOP_RIGHT: 'Top Right',
+  TOP_LEFT: 'Top Left',
 }
 
 export function WebsiteDetailPage() {
@@ -43,7 +61,7 @@ export function WebsiteDetailPage() {
   const deleteQA = useDeleteCustomQA(resolvedWebsiteId)
   const { data: analytics } = useAnalytics(resolvedWebsiteId)
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'qas' | 'analytics' | 'embed'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'qas' | 'analytics' | 'preview' | 'embed'>('overview')
   const [isQAModalOpen, setIsQAModalOpen] = useState(false)
   const [qaFormData, setQAFormData] = useState<CustomQACreate>({
     question: '',
@@ -52,6 +70,13 @@ export function WebsiteDetailPage() {
   })
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [appearanceConfig, setAppearanceConfig] = useState<AppearanceFormState>({
+    name: '',
+    brand_color: DEFAULT_BRAND_COLOR,
+    logo_url: '',
+    welcome_message: '',
+    position: 'BOTTOM_RIGHT',
+  })
 
   const normalizePriority = (value?: number) => {
     if (value === undefined) {
@@ -154,6 +179,75 @@ export function WebsiteDetailPage() {
     setTimeout(() => setSuccessMessage(null), 2000)
   }
 
+  useEffect(() => {
+    if (!website) {
+      return
+    }
+
+    setAppearanceConfig({
+      name: website.name ?? '',
+      brand_color: website.brand_color ?? DEFAULT_BRAND_COLOR,
+      logo_url: website.logo_url ?? '',
+      welcome_message: website.welcome_message ?? '',
+      position: website.position,
+    })
+  }, [website])
+
+  const handleAppearanceChange = <K extends keyof AppearanceFormState>(
+    key: K,
+    value: AppearanceFormState[K],
+  ) => {
+    setAppearanceConfig((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const handleResetAppearance = () => {
+    if (!website) {
+      setAppearanceConfig({
+        name: '',
+        brand_color: DEFAULT_BRAND_COLOR,
+        logo_url: '',
+        welcome_message: '',
+        position: 'BOTTOM_RIGHT',
+      })
+      return
+    }
+
+    setAppearanceConfig({
+      name: website.name ?? '',
+      brand_color: website.brand_color ?? DEFAULT_BRAND_COLOR,
+      logo_url: website.logo_url ?? '',
+      welcome_message: website.welcome_message ?? '',
+      position: website.position,
+    })
+  }
+
+  const handleSaveAppearance = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setErrorMessage(null)
+
+    const hexPattern = /^#[0-9A-Fa-f]{6}$/
+    if (appearanceConfig.brand_color && !hexPattern.test(appearanceConfig.brand_color)) {
+      setErrorMessage('Brand color must be a valid hex value, e.g. #2563EB.')
+      return
+    }
+
+    try {
+      await updateWebsite.mutateAsync({
+        name: appearanceConfig.name.trim() || undefined,
+        brand_color: appearanceConfig.brand_color || undefined,
+        logo_url: appearanceConfig.logo_url.trim() || undefined,
+        welcome_message: appearanceConfig.welcome_message.trim() || undefined,
+        position: appearanceConfig.position,
+      })
+      setSuccessMessage('Appearance updated successfully')
+      setTimeout(() => setSuccessMessage(null), 3000)
+    } catch (error) {
+      console.error('Failed to update appearance:', error)
+      setErrorMessage('Failed to save appearance settings.')
+      setTimeout(() => setErrorMessage(null), 5000)
+    }
+  }
+
   if (isLoading) {
     return (
       <AppShell>
@@ -185,10 +279,17 @@ export function WebsiteDetailPage() {
     )
   }
 
+  const widgetBaseUrl =
+    import.meta.env.VITE_WIDGET_BASE_URL ??
+    (typeof window !== 'undefined' ? window.location.origin : '')
+
+  const normalizedWidgetBaseUrl = widgetBaseUrl.replace(/\/$/, '')
+
   const embedCode = `<script>
 (function() {
   var script = document.createElement('script');
-  script.src = '${window.location.origin}/widget.js';
+  script.src = '${normalizedWidgetBaseUrl}/widget.js';
+  script.async = true;
   script.setAttribute('data-embed-token', '${website.embed_token}');
   document.body.appendChild(script);
 })();
@@ -239,7 +340,7 @@ export function WebsiteDetailPage() {
 
         {/* Tabs */}
         <div className="mb-6 flex gap-2 border-b border-slate-800">
-          {(['overview', 'qas', 'analytics', 'embed'] as const).map((tab) => (
+          {(['overview', 'qas', 'analytics', 'preview', 'embed'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -451,6 +552,125 @@ export function WebsiteDetailPage() {
                 </div>
               </Card>
             )}
+          </div>
+        )}
+
+        {/* Preview Tab */}
+        {activeTab === 'preview' && (
+          <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
+            <Card>
+              <CardHeader>
+                <div>
+                  <CardTitle>Appearance Settings</CardTitle>
+                  <CardDescription>
+                    Tweak the branding for your assistant and preview the changes in real time.
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <form className="space-y-5" onSubmit={handleSaveAppearance}>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-300">
+                    Assistant Name
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="Acme Assistant"
+                    value={appearanceConfig.name}
+                    onChange={(event) => handleAppearanceChange('name', event.target.value)}
+                  />
+                  <p className="mt-1 text-xs text-slate-500">
+                    Displayed in the chat header.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-300">
+                    Brand Color
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={appearanceConfig.brand_color || DEFAULT_BRAND_COLOR}
+                      onChange={(event) => handleAppearanceChange('brand_color', event.target.value)}
+                      className="h-10 w-16 cursor-pointer rounded-xl border border-slate-700/80 bg-slate-900/40"
+                      aria-label="Brand color picker"
+                    />
+                    <Input
+                      type="text"
+                      value={appearanceConfig.brand_color}
+                      onChange={(event) => handleAppearanceChange('brand_color', event.target.value)}
+                      placeholder="#2563EB"
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Provide a hex value (e.g. #2563EB). Leave blank to use the default accent.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-300">
+                    Logo URL
+                  </label>
+                  <Input
+                    type="url"
+                    placeholder="https://example.com/logo.png"
+                    value={appearanceConfig.logo_url}
+                    onChange={(event) => handleAppearanceChange('logo_url', event.target.value)}
+                  />
+                  <p className="mt-1 text-xs text-slate-500">
+                    Optional square logo displayed in the header. Leave empty to use initials.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-300">
+                    Welcome Message
+                  </label>
+                  <TextArea
+                    rows={3}
+                    value={appearanceConfig.welcome_message}
+                    onChange={(event) => handleAppearanceChange('welcome_message', event.target.value)}
+                    placeholder="Hi there! Ask me anything about our services."
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-300">
+                    Widget Position
+                  </label>
+                  <select
+                    value={appearanceConfig.position}
+                    onChange={(event) => handleAppearanceChange('position', event.target.value as WidgetPosition)}
+                    className="w-full rounded-xl border border-slate-700/80 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                  >
+                    {Object.entries(POSITION_OPTIONS).map(([value, label]) => (
+                      <option key={value} value={value} className="bg-slate-900 text-slate-100">
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <Button type="button" variant="secondary" onClick={handleResetAppearance}>
+                    Reset
+                  </Button>
+                  <Button type="submit" disabled={updateWebsite.isPending}>
+                    Save Appearance
+                  </Button>
+                </div>
+              </form>
+            </Card>
+
+            <Card className="overflow-hidden">
+              <ChatPreview
+                name={appearanceConfig.name || website.name || 'AI Assistant'}
+                brandColor={appearanceConfig.brand_color || DEFAULT_BRAND_COLOR}
+                logoUrl={appearanceConfig.logo_url || undefined}
+                welcomeMessage={appearanceConfig.welcome_message || website.welcome_message || 'How can I help you today?'}
+                position={appearanceConfig.position}
+              />
+            </Card>
           </div>
         )}
 

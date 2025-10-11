@@ -38,7 +38,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             response.headers["Access-Control-Allow-Origin"] = "*"
             response.headers["Access-Control-Allow-Headers"] = "X-Embed-Token, Content-Type"
             response.headers["X-Frame-Options"] = "ALLOWALL"
-            response.headers["Content-Security-Policy"] = "frame-ancestors *;"
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; "
+                "style-src 'self' 'unsafe-inline'; "
+                "script-src 'self'; "
+                "img-src 'self' data: https:; "
+                "connect-src 'self'; "
+                "frame-ancestors 'self' https://* http://localhost:* http://127.0.0.1:*;"
+            )
         return response
 
 
