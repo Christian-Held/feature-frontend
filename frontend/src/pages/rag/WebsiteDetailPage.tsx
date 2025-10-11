@@ -199,6 +199,75 @@ export function WebsiteDetailPage() {
     })
   }, [website])
 
+  const handleAppearanceFieldChange = <K extends keyof AppearanceFormState>(
+    key: K,
+    value: AppearanceFormState[K],
+  ) => {
+    setAppearanceConfig((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const handleResetAppearance = () => {
+    if (!website) {
+      setAppearanceConfig({
+        name: '',
+        brand_color: DEFAULT_BRAND_COLOR,
+        logo_url: '',
+        welcome_message: '',
+        position: 'BOTTOM_RIGHT',
+      })
+      return
+    }
+
+    setAppearanceConfig({
+      name: website.name ?? '',
+      brand_color: website.brand_color ?? DEFAULT_BRAND_COLOR,
+      logo_url: website.logo_url ?? '',
+      welcome_message: website.welcome_message ?? '',
+      position: website.position,
+    })
+  }
+
+  const handleSaveAppearance = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setErrorMessage(null)
+
+    const hexPattern = /^#[0-9A-Fa-f]{6}$/
+    if (appearanceConfig.brand_color && !hexPattern.test(appearanceConfig.brand_color)) {
+      setErrorMessage('Brand color must be a valid hex value, e.g. #2563EB.')
+      return
+    }
+
+    try {
+      await updateWebsite.mutateAsync({
+        name: appearanceConfig.name.trim() || undefined,
+        brand_color: appearanceConfig.brand_color || undefined,
+        logo_url: appearanceConfig.logo_url.trim() || undefined,
+        welcome_message: appearanceConfig.welcome_message.trim() || undefined,
+        position: appearanceConfig.position,
+      })
+      setSuccessMessage('Appearance updated successfully')
+      setTimeout(() => setSuccessMessage(null), 3000)
+    } catch (error) {
+      console.error('Failed to update appearance:', error)
+      setErrorMessage('Failed to save appearance settings.')
+      setTimeout(() => setErrorMessage(null), 5000)
+    }
+  }
+
+  useEffect(() => {
+    if (!website) {
+      return
+    }
+
+    setAppearanceConfig({
+      name: website.name ?? '',
+      brand_color: website.brand_color ?? DEFAULT_BRAND_COLOR,
+      logo_url: website.logo_url ?? '',
+      welcome_message: website.welcome_message ?? '',
+      position: website.position,
+    })
+  }, [website])
+
   const handleAppearanceChange = <K extends keyof AppearanceFormState>(
     key: K,
     value: AppearanceFormState[K],
@@ -651,7 +720,7 @@ export function WebsiteDetailPage() {
                     type="text"
                     placeholder="Acme Assistant"
                     value={appearanceConfig.name}
-                    onChange={(event) => handleAppearanceChange('name', event.target.value)}
+                    onChange={(event) => handleAppearanceFieldChange('name', event.target.value)}
                   />
                   <p className="mt-1 text-xs text-slate-500">
                     Displayed in the chat header.
@@ -666,14 +735,14 @@ export function WebsiteDetailPage() {
                     <input
                       type="color"
                       value={appearanceConfig.brand_color || DEFAULT_BRAND_COLOR}
-                      onChange={(event) => handleAppearanceChange('brand_color', event.target.value)}
+                      onChange={(event) => handleAppearanceFieldChange('brand_color', event.target.value)}
                       className="h-10 w-16 cursor-pointer rounded-xl border border-slate-700/80 bg-slate-900/40"
                       aria-label="Brand color picker"
                     />
                     <Input
                       type="text"
                       value={appearanceConfig.brand_color}
-                      onChange={(event) => handleAppearanceChange('brand_color', event.target.value)}
+                      onChange={(event) => handleAppearanceFieldChange('brand_color', event.target.value)}
                       placeholder="#2563EB"
                     />
                   </div>
@@ -690,7 +759,7 @@ export function WebsiteDetailPage() {
                     type="url"
                     placeholder="https://example.com/logo.png"
                     value={appearanceConfig.logo_url}
-                    onChange={(event) => handleAppearanceChange('logo_url', event.target.value)}
+                    onChange={(event) => handleAppearanceFieldChange('logo_url', event.target.value)}
                   />
                   <p className="mt-1 text-xs text-slate-500">
                     Optional square logo displayed in the header. Leave empty to use initials.
@@ -704,7 +773,7 @@ export function WebsiteDetailPage() {
                   <TextArea
                     rows={3}
                     value={appearanceConfig.welcome_message}
-                    onChange={(event) => handleAppearanceChange('welcome_message', event.target.value)}
+                    onChange={(event) => handleAppearanceFieldChange('welcome_message', event.target.value)}
                     placeholder="Hi there! Ask me anything about our services."
                   />
                 </div>
@@ -715,7 +784,7 @@ export function WebsiteDetailPage() {
                   </label>
                   <select
                     value={appearanceConfig.position}
-                    onChange={(event) => handleAppearanceChange('position', event.target.value as WidgetPosition)}
+                    onChange={(event) => handleAppearanceFieldChange('position', event.target.value as WidgetPosition)}
                     className="w-full rounded-xl border border-slate-700/80 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                   >
                     {Object.entries(POSITION_OPTIONS).map(([value, label]) => (
