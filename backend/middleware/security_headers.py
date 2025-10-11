@@ -44,7 +44,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
                 "script-src 'self'; "
                 "img-src 'self' data: https:; "
                 "connect-src 'self'; "
-                "frame-ancestors 'self' https: http://localhost:* http://127.0.0.1:*;"
+                "frame-ancestors 'self' https://* http://localhost:* http://127.0.0.1:*;"
             )
         return response
 

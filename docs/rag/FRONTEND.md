@@ -412,7 +412,7 @@ Simple card-based layout showing:
 <script>
 (function() {
   var script = document.createElement('script');
-  script.src = '${window.location.origin}/widget.js';
+  script.src = '${import.meta.env.VITE_WIDGET_BASE_URL ?? 'https://app.example.com'}/widget.js';
   script.setAttribute('data-embed-token', '${website.embed_token}');
   document.body.appendChild(script);
 })();

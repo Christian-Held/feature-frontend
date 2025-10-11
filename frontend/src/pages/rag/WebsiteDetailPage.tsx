@@ -279,10 +279,17 @@ export function WebsiteDetailPage() {
     )
   }
 
+  const widgetBaseUrl =
+    import.meta.env.VITE_WIDGET_BASE_URL ??
+    (typeof window !== 'undefined' ? window.location.origin : '')
+
+  const normalizedWidgetBaseUrl = widgetBaseUrl.replace(/\/$/, '')
+
   const embedCode = `<script>
 (function() {
   var script = document.createElement('script');
-  script.src = '${window.location.origin}/widget.js';
+  script.src = '${normalizedWidgetBaseUrl}/widget.js';
+  script.async = true;
   script.setAttribute('data-embed-token', '${website.embed_token}');
   document.body.appendChild(script);
 })();
