@@ -56,6 +56,30 @@ class WebsiteResponse(BaseModel):
         from_attributes = True
 
 
+class WebsitePageResponse(BaseModel):
+    id: UUID
+    url: str
+    title: Optional[str]
+    content: str
+    content_preview: str
+    word_count: int
+    page_metadata: Optional[Dict[str, Any]]
+    last_crawled_at: datetime
+    created_at: datetime
+    updated_at: datetime
+
+
+class CrawlExportInfo(BaseModel):
+    filename: str
+    crawled_at: Optional[str] = None
+    page_count: Optional[int] = None
+
+
+class WebsitePageCollectionResponse(BaseModel):
+    pages: List[WebsitePageResponse]
+    export: Optional[CrawlExportInfo] = None
+
+
 # Custom Q&A Schemas
 class CustomQACreate(BaseModel):
     question: str = Field(..., min_length=1, max_length=500)

@@ -283,6 +283,10 @@ export class ApiClient {
     return this.request<T>(path, { ...options, method: options.method ?? 'GET' })
   }
 
+  getRaw(path: string, options: RequestOptions = {}) {
+    return this.requestRaw(path, { ...options, method: options.method ?? 'GET' })
+  }
+
   post<T, B = unknown>(path: string, body?: B, options: RequestOptions = {}) {
     const { body: originalBody, ...rest } = options
     const preparedBody = this.prepareBody(body, originalBody ?? null)

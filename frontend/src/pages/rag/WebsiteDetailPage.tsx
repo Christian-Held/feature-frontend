@@ -25,9 +25,11 @@ import {
   useCustomQAs,
   useCreateCustomQA,
   useDeleteCustomQA,
+  useWebsitePages,
   useAnalytics,
 } from '../../features/rag/hooks'
 import type { CustomQACreate, Website, WidgetPosition } from '../../features/rag/api'
+import { downloadWebsitePagesExport } from '../../features/rag/api'
 import { ApiError } from '../../lib/api'
 
 const STATUS_COLORS: Record<Website['status'], string> = {
@@ -222,6 +224,13 @@ export function WebsiteDetailPage() {
   const createQA = useCreateCustomQA(resolvedWebsiteId)
   const deleteQA = useDeleteCustomQA(resolvedWebsiteId)
   const { data: analytics } = useAnalytics(resolvedWebsiteId)
+  const {
+    data: pagesCollection,
+    isLoading: isLoadingPages,
+    isFetching: isFetchingPages,
+    refetch: refetchPages,
+    error: pagesError,
+  } = useWebsitePages(resolvedWebsiteId)
 
   const [activeTab, setActiveTab] = useState<'overview' | 'qas' | 'analytics' | 'preview' | 'embed'>('overview')
   const [isQAModalOpen, setIsQAModalOpen] = useState(false)
@@ -242,6 +251,10 @@ export function WebsiteDetailPage() {
   const [latestCrawlDelta, setLatestCrawlDelta] = useState<number | null>(null)
   const previousWebsiteIdRef = useRef<string | null>(null)
   const previousPagesIndexedRef = useRef<number | null>(null)
+  const previousStatusRef = useRef<Website['status'] | null>(null)
+  const [expandedPageId, setExpandedPageId] = useState<string | null>(null)
+  const [isDownloadingExport, setIsDownloadingExport] = useState(false)
+  const [downloadError, setDownloadError] = useState<string | null>(null)
 
   const normalizePriority = (value?: number) => {
     if (value === undefined) {
@@ -278,6 +291,41 @@ export function WebsiteDetailPage() {
         setErrorMessage('Failed to start crawl')
       }
       setTimeout(() => setErrorMessage(null), 5000)
+    }
+  }
+
+  const handleDownloadExport = async () => {
+    if (!resolvedWebsiteId) {
+      return
+    }
+
+    setDownloadError(null)
+    setIsDownloadingExport(true)
+
+    try {
+      const { blob, filename } = await downloadWebsitePagesExport(resolvedWebsiteId)
+      const fallbackBase = (website?.name?.trim() || website?.url || 'crawl-export')
+        .replace(/^https?:\/\//i, '')
+      const safeBase = fallbackBase
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '') || resolvedWebsiteId
+      const exportName = filename ?? `${safeBase}-crawl.json`
+
+      const blobUrl = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = blobUrl
+      link.download = exportName
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(blobUrl)
+    } catch (error) {
+      console.error('Failed to download crawl export:', error)
+      setDownloadError('Unable to download the latest crawl export. Please try again.')
+      setTimeout(() => setDownloadError(null), 4000)
+    } finally {
+      setIsDownloadingExport(false)
     }
   }
 
@@ -344,6 +392,7 @@ export function WebsiteDetailPage() {
     if (!website) {
       previousWebsiteIdRef.current = null
       previousPagesIndexedRef.current = null
+      previousStatusRef.current = null
       setLatestCrawlDelta(null)
       return
     }
@@ -370,6 +419,30 @@ export function WebsiteDetailPage() {
       setLatestCrawlDelta(delta > 0 ? delta : null)
     }
   }, [website])
+
+  useEffect(() => {
+    if (!website) {
+      previousStatusRef.current = null
+      return
+    }
+
+    const currentStatus = website.status
+    const previousStatus = previousStatusRef.current
+
+    if (previousStatus && previousStatus !== currentStatus && (currentStatus === 'READY' || currentStatus === 'ERROR')) {
+      refetchPages()
+    }
+
+    previousStatusRef.current = currentStatus
+
+    if (currentStatus === 'CRAWLING') {
+      const timeout = setTimeout(() => {
+        refetchPages()
+      }, 5000)
+
+      return () => clearTimeout(timeout)
+    }
+  }, [website, refetchPages])
 
   useEffect(() => {
     if (!website) {
@@ -741,6 +814,145 @@ export function WebsiteDetailPage() {
                     )
                   })}
                 </ul>
+              </div>
+            </Card>
+
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle>Indexed pages</CardTitle>
+                <CardDescription>
+                  Review the pages your assistant has learned from and grab the full JSON snapshot.
+                </CardDescription>
+              </CardHeader>
+              <div className="space-y-4 px-6 pb-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-white">
+                      {(pagesCollection?.pages.length ?? 0).toLocaleString()} {pluralize(pagesCollection?.pages.length ?? 0, 'page')} captured
+                    </p>
+                    {pagesCollection?.export?.crawled_at ? (
+                      <p className="text-xs text-slate-500">
+                        Snapshot from {formatDate(pagesCollection.export.crawled_at)}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-slate-500">Snapshots appear after a successful crawl.</p>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        setExpandedPageId(null)
+                        refetchPages()
+                      }}
+                      disabled={isFetchingPages}
+                    >
+                      {isFetchingPages ? 'Refreshing…' : 'Refresh'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleDownloadExport}
+                      disabled={
+                        isDownloadingExport ||
+                        !pagesCollection ||
+                        pagesCollection.pages.length === 0
+                      }
+                    >
+                      {isDownloadingExport ? 'Preparing…' : 'Download JSON'}
+                    </Button>
+                  </div>
+                </div>
+
+                {downloadError && (
+                  <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                    {downloadError}
+                  </div>
+                )}
+
+                {pagesError && (
+                  <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                    {pagesError instanceof ApiError
+                      ? pagesError.message
+                      : 'Failed to load pages. Please try refreshing.'}
+                  </div>
+                )}
+
+                {isLoadingPages ? (
+                  <div className="flex min-h-[140px] items-center justify-center">
+                    <Spinner size="sm" />
+                  </div>
+                ) : pagesCollection && pagesCollection.pages.length > 0 ? (
+                  <ul className="space-y-4">
+                    {pagesCollection.pages.map((page) => {
+                      const isExpanded = expandedPageId === page.id
+                      const canExpand = page.content.length > page.content_preview.length
+                      const headings = Array.isArray(page.page_metadata?.headings)
+                        ? (page.page_metadata?.headings as Array<{ level: number; text: string }>)
+                        : []
+
+                      return (
+                        <li
+                          key={page.id}
+                          className="rounded-lg border border-slate-800/70 bg-slate-950/50 p-4 shadow-sm shadow-slate-950/30"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-white">
+                                {page.title?.trim() || page.url}
+                              </p>
+                              <a
+                                href={page.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="block text-xs text-blue-300 hover:text-blue-200 break-all"
+                              >
+                                {page.url}
+                              </a>
+                            </div>
+                            <div className="flex flex-col items-end gap-1 text-xs text-slate-400">
+                              <span>
+                                {page.word_count.toLocaleString()} {pluralize(page.word_count, 'word')}
+                              </span>
+                              <span>Updated {formatDate(page.last_crawled_at)}</span>
+                            </div>
+                          </div>
+                          <p className="mt-3 text-sm leading-relaxed text-slate-300 whitespace-pre-wrap">
+                            {isExpanded ? page.content : page.content_preview}
+                          </p>
+                          {canExpand && (
+                            <button
+                              type="button"
+                              className="mt-2 text-xs font-semibold text-blue-300 transition hover:text-blue-200"
+                              onClick={() => setExpandedPageId(isExpanded ? null : page.id)}
+                            >
+                              {isExpanded ? 'Show less' : 'Show full content'}
+                            </button>
+                          )}
+                          {headings.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-400">
+                              {headings.slice(0, 3).map((heading, index) => (
+                                <span
+                                  key={`${page.id}-heading-${index}`}
+                                  className="rounded-full bg-slate-800/80 px-2 py-1"
+                                >
+                                  H{heading.level}: {heading.text}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                ) : (
+                  <div className="rounded-lg border border-dashed border-slate-800/70 bg-slate-950/40 px-6 py-10 text-center">
+                    <p className="text-sm text-slate-300">No pages captured yet.</p>
+                    <p className="mt-2 text-xs text-slate-500">
+                      Start a crawl to see indexed content and download structured JSON exports.
+                    </p>
+                  </div>
+                )}
               </div>
             </Card>
           </div>

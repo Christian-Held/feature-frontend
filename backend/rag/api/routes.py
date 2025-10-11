@@ -2,9 +2,14 @@
 
 from datetime import datetime
 from typing import List
+import json
+import re
 import uuid
+from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Header, status
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -15,6 +20,9 @@ from backend.rag.api.schemas import (
     WebsiteCreate,
     WebsiteUpdate,
     WebsiteResponse,
+    WebsitePageCollectionResponse,
+    WebsitePageResponse,
+    CrawlExportInfo,
     CustomQACreate,
     CustomQAUpdate,
     CustomQAResponse,
@@ -24,10 +32,15 @@ from backend.rag.api.schemas import (
     UsageStatsResponse,
 )
 from backend.rag.models.website import Website, WebsiteStatus
+from backend.rag.models.website_page import WebsitePage
 from backend.rag.models.custom_qa import CustomQA
 from backend.rag.models.usage_stat import UsageStat
 from backend.core.config import get_settings
-from backend.rag.tasks.crawl import crawl_website_task, run_crawl_inline
+from backend.rag.tasks.crawl import (
+    crawl_website_task,
+    run_crawl_inline,
+    get_latest_export_path,
+)
 from backend.rag.query import RAGQueryService
 
 router = APIRouter(prefix="/v1/rag", tags=["rag"])
@@ -96,6 +109,104 @@ def create_website(
             session.refresh(website)
 
     return website
+
+
+@router.get("/websites/{website_id}/pages", response_model=WebsitePageCollectionResponse)
+def list_website_pages(
+    website_id: str,
+    current_user: User = Depends(require_current_user),
+    session: Session = Depends(get_db),
+):
+    """Return crawled pages for a website along with latest export metadata."""
+
+    website_result = session.execute(
+        select(Website).where(
+            Website.id == uuid.UUID(website_id),
+            Website.user_id == current_user.id
+        )
+    )
+    website = website_result.scalar_one_or_none()
+
+    if not website:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Website not found"
+        )
+
+    result = session.execute(
+        select(WebsitePage)
+        .where(WebsitePage.website_id == website.id)
+        .order_by(WebsitePage.last_crawled_at.desc())
+    )
+    pages = result.scalars().all()
+
+    page_payloads = [
+        WebsitePageResponse(
+            id=page.id,
+            url=page.url,
+            title=page.title,
+            content=page.content,
+            content_preview=_build_content_preview(page.content),
+            word_count=len(page.content.split()),
+            page_metadata=page.page_metadata,
+            last_crawled_at=page.last_crawled_at,
+            created_at=page.created_at,
+            updated_at=page.updated_at,
+        )
+        for page in pages
+    ]
+
+    export_path = get_latest_export_path(website.id)
+    export_info: CrawlExportInfo | None = None
+
+    if export_path and export_path.exists():
+        metadata = _load_export_metadata(export_path)
+        export_info = CrawlExportInfo(
+            filename=export_path.name,
+            crawled_at=metadata.get("crawled_at"),
+            page_count=metadata.get("page_count"),
+        )
+
+    return WebsitePageCollectionResponse(pages=page_payloads, export=export_info)
+
+
+@router.get("/websites/{website_id}/pages/export")
+def download_crawl_export(
+    website_id: str,
+    current_user: User = Depends(require_current_user),
+    session: Session = Depends(get_db),
+):
+    """Download the latest crawl snapshot for a website."""
+
+    website_result = session.execute(
+        select(Website).where(
+            Website.id == uuid.UUID(website_id),
+            Website.user_id == current_user.id
+        )
+    )
+    website = website_result.scalar_one_or_none()
+
+    if not website:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Website not found"
+        )
+
+    export_path = get_latest_export_path(website.id)
+
+    if not export_path or not export_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No crawl export available yet"
+        )
+
+    filename = _build_export_filename(website, export_path)
+
+    return FileResponse(
+        export_path,
+        media_type="application/json",
+        filename=filename,
+    )
 
 
 @router.get("/websites", response_model=List[WebsiteResponse])
@@ -479,6 +590,58 @@ def get_analytics(
     stats = result.scalars().all()
 
     return stats
+
+
+def _build_content_preview(text: str, max_length: int = 320) -> str:
+    collapsed = re.sub(r"\s+", " ", text or "").strip()
+    if len(collapsed) <= max_length:
+        return collapsed
+    return f"{collapsed[:max_length].rstrip()}…"
+
+
+def _load_export_metadata(export_path: Path) -> dict[str, Any]:
+    try:
+        with export_path.open("r", encoding="utf-8") as export_file:
+            data = json.load(export_file)
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+    if not isinstance(data, dict):
+        return {}
+
+    return {
+        "crawled_at": data.get("crawled_at"),
+        "page_count": data.get("page_count"),
+    }
+
+
+def _normalize_export_timestamp(value: str | None) -> str:
+    if not value:
+        return "latest"
+
+    normalized = value.replace(":", "").replace("-", "")
+    normalized = normalized.replace(".", "").replace("+", "")
+    normalized = normalized.replace("Z", "Z").replace("T", "T")
+    safe = re.sub(r"[^0-9TZ]", "", normalized)
+    return safe or "latest"
+
+
+def _build_export_filename(website: Website, export_path: Path) -> str:
+    base_name = website.name or website.url
+    safe_base = re.sub(r"[^A-Za-z0-9]+", "-", base_name).strip("-") if base_name else ""
+
+    if not safe_base:
+        safe_base = str(website.id)
+
+    metadata = _load_export_metadata(export_path)
+    timestamp_hint = metadata.get("crawled_at") if metadata else None
+
+    if not timestamp_hint and export_path.stem != "latest":
+        timestamp_hint = export_path.stem
+
+    safe_timestamp = _normalize_export_timestamp(timestamp_hint)
+
+    return f"{safe_base}-crawl-{safe_timestamp}.json"
 
 
 __all__ = ["router"]
