@@ -25,7 +25,7 @@ export function Sidebar() {
   const { data: subscriptionData } = useSubscription()
 
   // Admin users see everything, PRO users see everything, FREE users only see subscription
-  const isPro = subscriptionData?.plan === 'PRO'
+  const isPro = subscriptionData?.plan?.name === 'PRO'
   const isAdmin = user?.roles?.includes('superadmin')
 
   // Admins always see everything, otherwise check plan

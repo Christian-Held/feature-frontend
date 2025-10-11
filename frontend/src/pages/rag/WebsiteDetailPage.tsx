@@ -1,4 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import {
+  ArrowPathIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  ExclamationTriangleIcon,
+  SparklesIcon,
+} from '@heroicons/react/24/outline'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { AppShell } from '../../components/layout/AppShell'
 import { Header } from '../../components/layout/Header'
@@ -31,6 +38,161 @@ const STATUS_COLORS: Record<Website['status'], string> = {
 }
 
 const DEFAULT_BRAND_COLOR = '#2563eb'
+
+type CrawlEventState = 'done' | 'active' | 'upcoming' | 'error'
+
+type CrawlTimelineEvent = {
+  key: string
+  title: string
+  description: string
+  state: CrawlEventState
+  timestamp?: string
+}
+
+const formatDate = (dateStr: string) => {
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+const pluralize = (count: number, singular: string, plural?: string) => {
+  if (count === 1) {
+    return singular
+  }
+  if (plural) {
+    return plural
+  }
+  return `${singular}s`
+}
+
+const buildCrawlTimeline = (website: Website, latestDelta: number | null): CrawlTimelineEvent[] => {
+  const hasIndexedPages = website.pages_indexed > 0
+  const queueState: CrawlEventState =
+    website.status === 'PENDING'
+      ? 'active'
+      : website.status === 'READY' || website.status === 'ERROR' || website.status === 'CRAWLING'
+        ? 'done'
+        : 'upcoming'
+
+  const crawlingState: CrawlEventState =
+    website.status === 'CRAWLING'
+      ? 'active'
+      : website.status === 'READY' || website.status === 'ERROR'
+        ? 'done'
+        : 'upcoming'
+
+  const indexingState: CrawlEventState = hasIndexedPages
+    ? website.status === 'CRAWLING'
+      ? 'active'
+      : 'done'
+    : website.status === 'READY' || website.status === 'ERROR'
+      ? 'error'
+      : 'upcoming'
+
+  const assistantState: CrawlEventState =
+    website.status === 'READY'
+      ? hasIndexedPages
+        ? 'done'
+        : 'error'
+      : website.status === 'ERROR'
+        ? 'error'
+        : 'upcoming'
+
+  const indexingDescription = hasIndexedPages
+    ? latestDelta && latestDelta > 0
+      ? `Indexed ${website.pages_indexed} ${pluralize(website.pages_indexed, 'page')} (+${latestDelta} new this run).`
+      : `Indexed ${website.pages_indexed} ${pluralize(website.pages_indexed, 'page')} so far.`
+    : website.status === 'READY'
+      ? 'The crawl finished but no pages were indexed. Check if the site is reachable or increase the allowed page limit.'
+      : 'Waiting for the first batch of pages to finish.'
+
+  const assistantDescription = (() => {
+    if (website.status === 'READY') {
+      if (hasIndexedPages) {
+        if (latestDelta && latestDelta > 0) {
+          return `Assistant updated with ${latestDelta} new ${pluralize(latestDelta, 'page')}.`
+        }
+        return `Assistant synced with ${website.pages_indexed} ${pluralize(website.pages_indexed, 'page')}.`
+      }
+      return 'Assistant could not find any crawlable content in this run.'
+    }
+
+    if (website.status === 'ERROR') {
+      return 'Assistant is waiting for a successful crawl.'
+    }
+
+    if (website.status === 'CRAWLING') {
+      return 'We will publish the new knowledge as soon as indexing completes.'
+    }
+
+    return 'Start a crawl to teach your assistant about this website.'
+  })()
+
+  const events: CrawlTimelineEvent[] = [
+    {
+      key: 'queued',
+      title: 'Queued for crawling',
+      description: 'Website registered and ready for the crawler.',
+      state: queueState,
+      timestamp: formatDate(website.created_at),
+    },
+    {
+      key: 'crawling',
+      title: 'Exploring your site',
+      description:
+        website.status === 'CRAWLING'
+          ? 'The crawler is following links and collecting content right now.'
+          : website.status === 'READY'
+            ? 'Finished exploring the site during the last crawl.'
+            : website.status === 'ERROR'
+              ? 'The crawler stopped before it could finish.'
+              : 'Waiting for the crawl to start.',
+      state: crawlingState,
+      timestamp:
+        website.status === 'CRAWLING'
+          ? 'Happening now'
+          : website.last_crawled_at && (website.status === 'READY' || website.status === 'ERROR')
+            ? `Last attempt ${formatDate(website.last_crawled_at)}`
+            : undefined,
+    },
+    {
+      key: 'indexing',
+      title: 'Indexing pages',
+      description: indexingDescription,
+      state: indexingState,
+      timestamp:
+        hasIndexedPages && website.last_crawled_at
+          ? `Updated ${formatDate(website.last_crawled_at)}`
+          : undefined,
+    },
+    {
+      key: 'assistant',
+      title: 'Assistant updated',
+      description: assistantDescription,
+      state: assistantState,
+      timestamp:
+        website.status === 'READY' && website.last_crawled_at
+          ? `Published ${formatDate(website.last_crawled_at)}`
+          : undefined,
+    },
+  ]
+
+  if (website.status === 'ERROR' && website.crawl_error) {
+    events.push({
+      key: 'error',
+      title: 'Something went wrong',
+      description: website.crawl_error,
+      state: 'error',
+      timestamp: formatDate(website.updated_at),
+    })
+  }
+
+  return events
+}
 
 type AppearanceFormState = {
   name: string
@@ -77,6 +239,9 @@ export function WebsiteDetailPage() {
     welcome_message: '',
     position: 'BOTTOM_RIGHT',
   })
+  const [latestCrawlDelta, setLatestCrawlDelta] = useState<number | null>(null)
+  const previousWebsiteIdRef = useRef<string | null>(null)
+  const previousPagesIndexedRef = useRef<number | null>(null)
 
   const normalizePriority = (value?: number) => {
     if (value === undefined) {
@@ -169,21 +334,42 @@ export function WebsiteDetailPage() {
     }
   }
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  }
-
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
     setSuccessMessage('Copied to clipboard!')
     setTimeout(() => setSuccessMessage(null), 2000)
   }
+
+  useEffect(() => {
+    if (!website) {
+      previousWebsiteIdRef.current = null
+      previousPagesIndexedRef.current = null
+      setLatestCrawlDelta(null)
+      return
+    }
+
+    if (previousWebsiteIdRef.current !== website.id) {
+      previousWebsiteIdRef.current = website.id
+      previousPagesIndexedRef.current = website.pages_indexed
+      setLatestCrawlDelta(null)
+      return
+    }
+
+    if (website.status === 'CRAWLING') {
+      setLatestCrawlDelta(null)
+    }
+
+    if (previousPagesIndexedRef.current === null) {
+      previousPagesIndexedRef.current = website.pages_indexed
+      return
+    }
+
+    if (website.pages_indexed !== previousPagesIndexedRef.current) {
+      const delta = website.pages_indexed - previousPagesIndexedRef.current
+      previousPagesIndexedRef.current = website.pages_indexed
+      setLatestCrawlDelta(delta > 0 ? delta : null)
+    }
+  }, [website])
 
   useEffect(() => {
     if (!website) {
@@ -301,6 +487,34 @@ export function WebsiteDetailPage() {
 })();
 </script>`
 
+  const hasIndexedPages = website.pages_indexed > 0
+  const timelineEvents = buildCrawlTimeline(website, latestCrawlDelta)
+
+  const getTimelineVisuals = (state: CrawlEventState) => {
+    switch (state) {
+      case 'done':
+        return {
+          className: 'border-emerald-500/60 bg-emerald-500/10 text-emerald-200',
+          icon: <CheckCircleIcon className="h-4 w-4" aria-hidden="true" />,
+        }
+      case 'active':
+        return {
+          className: 'border-blue-500/60 bg-blue-500/10 text-blue-200',
+          icon: <ArrowPathIcon className="h-4 w-4 animate-spin" aria-hidden="true" />,
+        }
+      case 'error':
+        return {
+          className: 'border-red-500/60 bg-red-500/10 text-red-200',
+          icon: <ExclamationTriangleIcon className="h-4 w-4" aria-hidden="true" />,
+        }
+      default:
+        return {
+          className: 'border-slate-800 bg-slate-900/70 text-slate-400',
+          icon: <ClockIcon className="h-4 w-4" aria-hidden="true" />,
+        }
+    }
+  }
+
   return (
     <AppShell>
       <Header
@@ -399,13 +613,51 @@ export function WebsiteDetailPage() {
                     srLabel={`Crawling progress for ${website.name}`}
                   />
                   <p className="text-xs text-slate-500">
-                    Indexed {website.pages_indexed} of {website.max_pages} pages
+                    Indexed {website.pages_indexed} of {website.max_pages}{' '}
+                    {pluralize(website.max_pages, 'page')}
                   </p>
                 </div>
               )}
+              {website.status === 'PENDING' && (
+                <div className="mt-4 flex items-start gap-3 rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-xs text-slate-300">
+                  <ClockIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-slate-300" aria-hidden="true" />
+                  <div>
+                    <p className="font-semibold text-slate-100">Waiting to crawl</p>
+                    <p className="text-slate-400">Launch a crawl to index pages and populate the assistant.</p>
+                  </div>
+                </div>
+              )}
+              {website.status === 'CRAWLING' && (
+                <div className="mt-4 flex items-start gap-3 rounded-xl border border-blue-500/40 bg-blue-500/10 px-3 py-2 text-xs text-blue-100">
+                  <ArrowPathIcon className="mt-0.5 h-5 w-5 flex-shrink-0 animate-spin" aria-hidden="true" />
+                  <div>
+                    <p className="font-semibold text-blue-100">Crawl in progress</p>
+                    <p className="text-blue-100/80">We are exploring your site and streaming new pages into the index.</p>
+                  </div>
+                </div>
+              )}
+              {website.status === 'READY' && (
+                <div className="mt-4 flex items-start gap-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
+                  <SparklesIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-200" aria-hidden="true" />
+                  <div>
+                    <p className="font-semibold text-emerald-100">Latest crawl complete</p>
+                    <p className="text-emerald-200/80">
+                      {hasIndexedPages
+                        ? latestCrawlDelta && latestCrawlDelta > 0
+                          ? `Your assistant learned ${latestCrawlDelta} new ${pluralize(latestCrawlDelta, 'page')}.`
+                          : `Your assistant now knows ${website.pages_indexed} ${pluralize(website.pages_indexed, 'page')} from this site.`
+                        : 'No pages were captured. Try another crawl or adjust the crawl settings.'}
+                    </p>
+                  </div>
+                </div>
+              )}
               {website.crawl_error && (
-                <div className="mt-4 rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-300">
-                  {website.crawl_error}
+                <div className="mt-4 flex items-start gap-3 rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-200">
+                  <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-300" aria-hidden="true" />
+                  <div>
+                    <p className="font-semibold text-red-100">Crawl failed</p>
+                    <p className="text-red-200/80">{website.crawl_error}</p>
+                  </div>
                 </div>
               )}
               <Button
@@ -451,6 +703,44 @@ export function WebsiteDetailPage() {
                     <span className="text-white">{website.welcome_message}</span>
                   </div>
                 )}
+              </div>
+            </Card>
+
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle>Crawl activity</CardTitle>
+                <CardDescription>
+                  Live feedback from the crawler so you always know what is happening.
+                </CardDescription>
+              </CardHeader>
+              <div className="px-6 pb-6">
+                <ul className="relative space-y-6">
+                  {timelineEvents.map((event, index) => {
+                    const visuals = getTimelineVisuals(event.state)
+                    return (
+                      <li key={event.key} className="relative flex gap-3">
+                        {index !== timelineEvents.length - 1 && (
+                          <span
+                            className="absolute left-[15px] top-8 bottom-[-24px] w-px bg-slate-800/80"
+                            aria-hidden="true"
+                          />
+                        )}
+                        <span
+                          className={`mt-1 flex h-8 w-8 items-center justify-center rounded-full border text-xs ${visuals.className}`}
+                        >
+                          {visuals.icon}
+                        </span>
+                        <div className="flex-1 pt-1">
+                          <p className="text-sm font-semibold text-white">{event.title}</p>
+                          <p className="text-xs text-slate-400">{event.description}</p>
+                          {event.timestamp && (
+                            <p className="mt-2 text-xs text-slate-500">{event.timestamp}</p>
+                          )}
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
               </div>
             </Card>
           </div>
