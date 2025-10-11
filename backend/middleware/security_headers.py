@@ -34,7 +34,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers.setdefault("Content-Security-Policy", _CSP_VALUE)
 
         path = request.url.path
-        if path.startswith("/widget") or path.startswith("/v1/rag/chat"):
+        if path.startswith("/widget") or path.startswith("/v1/rag/chat") or path.startswith("/embed"):
             response.headers["Access-Control-Allow-Origin"] = "*"
             response.headers["Access-Control-Allow-Headers"] = "X-Embed-Token, Content-Type"
             response.headers["X-Frame-Options"] = "ALLOWALL"
