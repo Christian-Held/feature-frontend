@@ -1,10 +1,12 @@
 """Celery tasks for website crawling and embedding generation."""
 
 import asyncio
-from datetime import datetime
+import json
+from datetime import datetime, timezone
+from pathlib import Path
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from backend.core.config import get_settings
 from backend.db.session import SessionLocal
 from backend.rag.models.website import Website, WebsiteStatus
@@ -13,6 +15,9 @@ from backend.rag.crawler import WebsiteCrawler
 from backend.rag.embeddings import EmbeddingService
 from backend.rag.vector import VectorService
 from backend.rag.tasks.celery_app import get_celery_app
+
+
+EXPORT_BASE_DIR = Path(__file__).resolve().parents[2] / "static" / "crawls"
 
 celery_app = get_celery_app()
 
@@ -121,19 +126,33 @@ async def _crawl_website_async(
                 else:
                     await _process_page_embeddings_async(str(new_page.id))
 
+        total_pages = session.execute(
+            select(func.count()).select_from(WebsitePage).where(WebsitePage.website_id == website.id)
+        ).scalar_one()
+
         # Update website status
         website.status = WebsiteStatus.READY
         website.last_crawled_at = datetime.utcnow()
-        website.pages_indexed = pages_created + pages_updated
+        website.pages_indexed = total_pages
         website.crawl_error = None
 
         session.commit()
+
+        export_path = _write_crawl_export_snapshot(
+            website=website,
+            pages=session.execute(
+                select(WebsitePage)
+                .where(WebsitePage.website_id == website.id)
+                .order_by(WebsitePage.last_crawled_at.desc())
+            ).scalars().all(),
+        )
 
         return {
             "success": True,
             "pages_created": pages_created,
             "pages_updated": pages_updated,
             "total_pages": len(pages),
+            "export_file": export_path.name if export_path else None,
         }
 
     except Exception as e:
@@ -146,6 +165,82 @@ async def _crawl_website_async(
         return {"success": False, "error": str(e)}
     finally:
         session.close()
+
+
+def _write_crawl_export_snapshot(
+    *, website: Website, pages: list[WebsitePage]
+) -> Path | None:
+    """Persist the latest crawl results to a JSON export on disk."""
+
+    EXPORT_BASE_DIR.mkdir(parents=True, exist_ok=True)
+    website_dir = EXPORT_BASE_DIR / str(website.id)
+    website_dir.mkdir(parents=True, exist_ok=True)
+
+    snapshot = {
+        "website_id": str(website.id),
+        "website_url": website.url,
+        "website_name": website.name,
+        "crawled_at": datetime.now(timezone.utc).isoformat(),
+        "page_count": len(pages),
+        "pages": [
+            {
+                "id": str(page.id),
+                "url": page.url,
+                "title": page.title,
+                "content": page.content,
+                "metadata": page.page_metadata,
+                "content_hash": page.content_hash,
+                "word_count": len(page.content.split()),
+                "last_crawled_at": _serialize_datetime(page.last_crawled_at),
+                "created_at": _serialize_datetime(page.created_at),
+                "updated_at": _serialize_datetime(page.updated_at),
+            }
+            for page in pages
+        ],
+    }
+
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    export_path = website_dir / f"{timestamp}.json"
+    latest_path = website_dir / "latest.json"
+
+    try:
+        with export_path.open("w", encoding="utf-8") as export_file:
+            json.dump(snapshot, export_file, ensure_ascii=False, indent=2)
+
+        temp_latest = latest_path.with_suffix(".tmp")
+        with temp_latest.open("w", encoding="utf-8") as latest_file:
+            json.dump(snapshot, latest_file, ensure_ascii=False, indent=2)
+
+        temp_latest.replace(latest_path)
+    except OSError:
+        return None
+
+    return export_path
+
+
+def _serialize_datetime(value: datetime | None) -> str | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc).isoformat()
+    return value.astimezone(timezone.utc).isoformat()
+
+
+def get_latest_export_path(website_id: uuid.UUID) -> Path | None:
+    """Return the latest export file for a website if it exists."""
+
+    website_dir = EXPORT_BASE_DIR / str(website_id)
+    latest_path = website_dir / "latest.json"
+
+    if latest_path.exists():
+        return latest_path
+
+    json_files = sorted(website_dir.glob("*.json"), reverse=True)
+    for file_path in json_files:
+        if file_path.is_file():
+            return file_path
+
+    return None
 
 
 @celery_app.task(name="rag.process_page_embeddings")
@@ -215,4 +310,9 @@ async def _process_page_embeddings_async(page_id: str) -> dict:
         session.close()
 
 
-__all__ = ["crawl_website_task", "process_page_embeddings_task", "run_crawl_inline"]
+__all__ = [
+    "crawl_website_task",
+    "process_page_embeddings_task",
+    "run_crawl_inline",
+    "get_latest_export_path",
+]

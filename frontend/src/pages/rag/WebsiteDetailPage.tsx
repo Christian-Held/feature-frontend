@@ -1,4 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import {
+  ArrowPathIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  ExclamationTriangleIcon,
+  SparklesIcon,
+} from '@heroicons/react/24/outline'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { AppShell } from '../../components/layout/AppShell'
 import { Header } from '../../components/layout/Header'
@@ -18,9 +25,11 @@ import {
   useCustomQAs,
   useCreateCustomQA,
   useDeleteCustomQA,
+  useWebsitePages,
   useAnalytics,
 } from '../../features/rag/hooks'
 import type { CustomQACreate, Website, WidgetPosition } from '../../features/rag/api'
+import { downloadWebsitePagesExport } from '../../features/rag/api'
 import { ApiError } from '../../lib/api'
 
 const STATUS_COLORS: Record<Website['status'], string> = {
@@ -31,6 +40,161 @@ const STATUS_COLORS: Record<Website['status'], string> = {
 }
 
 const DEFAULT_BRAND_COLOR = '#2563eb'
+
+type CrawlEventState = 'done' | 'active' | 'upcoming' | 'error'
+
+type CrawlTimelineEvent = {
+  key: string
+  title: string
+  description: string
+  state: CrawlEventState
+  timestamp?: string
+}
+
+const formatDate = (dateStr: string) => {
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+const pluralize = (count: number, singular: string, plural?: string) => {
+  if (count === 1) {
+    return singular
+  }
+  if (plural) {
+    return plural
+  }
+  return `${singular}s`
+}
+
+const buildCrawlTimeline = (website: Website, latestDelta: number | null): CrawlTimelineEvent[] => {
+  const hasIndexedPages = website.pages_indexed > 0
+  const queueState: CrawlEventState =
+    website.status === 'PENDING'
+      ? 'active'
+      : website.status === 'READY' || website.status === 'ERROR' || website.status === 'CRAWLING'
+        ? 'done'
+        : 'upcoming'
+
+  const crawlingState: CrawlEventState =
+    website.status === 'CRAWLING'
+      ? 'active'
+      : website.status === 'READY' || website.status === 'ERROR'
+        ? 'done'
+        : 'upcoming'
+
+  const indexingState: CrawlEventState = hasIndexedPages
+    ? website.status === 'CRAWLING'
+      ? 'active'
+      : 'done'
+    : website.status === 'READY' || website.status === 'ERROR'
+      ? 'error'
+      : 'upcoming'
+
+  const assistantState: CrawlEventState =
+    website.status === 'READY'
+      ? hasIndexedPages
+        ? 'done'
+        : 'error'
+      : website.status === 'ERROR'
+        ? 'error'
+        : 'upcoming'
+
+  const indexingDescription = hasIndexedPages
+    ? latestDelta && latestDelta > 0
+      ? `Indexed ${website.pages_indexed} ${pluralize(website.pages_indexed, 'page')} (+${latestDelta} new this run).`
+      : `Indexed ${website.pages_indexed} ${pluralize(website.pages_indexed, 'page')} so far.`
+    : website.status === 'READY'
+      ? 'The crawl finished but no pages were indexed. Check if the site is reachable or increase the allowed page limit.'
+      : 'Waiting for the first batch of pages to finish.'
+
+  const assistantDescription = (() => {
+    if (website.status === 'READY') {
+      if (hasIndexedPages) {
+        if (latestDelta && latestDelta > 0) {
+          return `Assistant updated with ${latestDelta} new ${pluralize(latestDelta, 'page')}.`
+        }
+        return `Assistant synced with ${website.pages_indexed} ${pluralize(website.pages_indexed, 'page')}.`
+      }
+      return 'Assistant could not find any crawlable content in this run.'
+    }
+
+    if (website.status === 'ERROR') {
+      return 'Assistant is waiting for a successful crawl.'
+    }
+
+    if (website.status === 'CRAWLING') {
+      return 'We will publish the new knowledge as soon as indexing completes.'
+    }
+
+    return 'Start a crawl to teach your assistant about this website.'
+  })()
+
+  const events: CrawlTimelineEvent[] = [
+    {
+      key: 'queued',
+      title: 'Queued for crawling',
+      description: 'Website registered and ready for the crawler.',
+      state: queueState,
+      timestamp: formatDate(website.created_at),
+    },
+    {
+      key: 'crawling',
+      title: 'Exploring your site',
+      description:
+        website.status === 'CRAWLING'
+          ? 'The crawler is following links and collecting content right now.'
+          : website.status === 'READY'
+            ? 'Finished exploring the site during the last crawl.'
+            : website.status === 'ERROR'
+              ? 'The crawler stopped before it could finish.'
+              : 'Waiting for the crawl to start.',
+      state: crawlingState,
+      timestamp:
+        website.status === 'CRAWLING'
+          ? 'Happening now'
+          : website.last_crawled_at && (website.status === 'READY' || website.status === 'ERROR')
+            ? `Last attempt ${formatDate(website.last_crawled_at)}`
+            : undefined,
+    },
+    {
+      key: 'indexing',
+      title: 'Indexing pages',
+      description: indexingDescription,
+      state: indexingState,
+      timestamp:
+        hasIndexedPages && website.last_crawled_at
+          ? `Updated ${formatDate(website.last_crawled_at)}`
+          : undefined,
+    },
+    {
+      key: 'assistant',
+      title: 'Assistant updated',
+      description: assistantDescription,
+      state: assistantState,
+      timestamp:
+        website.status === 'READY' && website.last_crawled_at
+          ? `Published ${formatDate(website.last_crawled_at)}`
+          : undefined,
+    },
+  ]
+
+  if (website.status === 'ERROR' && website.crawl_error) {
+    events.push({
+      key: 'error',
+      title: 'Something went wrong',
+      description: website.crawl_error,
+      state: 'error',
+      timestamp: formatDate(website.updated_at),
+    })
+  }
+
+  return events
+}
 
 type AppearanceFormState = {
   name: string
@@ -60,6 +224,13 @@ export function WebsiteDetailPage() {
   const createQA = useCreateCustomQA(resolvedWebsiteId)
   const deleteQA = useDeleteCustomQA(resolvedWebsiteId)
   const { data: analytics } = useAnalytics(resolvedWebsiteId)
+  const {
+    data: pagesCollection,
+    isLoading: isLoadingPages,
+    isFetching: isFetchingPages,
+    refetch: refetchPages,
+    error: pagesError,
+  } = useWebsitePages(resolvedWebsiteId)
 
   const [activeTab, setActiveTab] = useState<'overview' | 'qas' | 'analytics' | 'preview' | 'embed'>('overview')
   const [isQAModalOpen, setIsQAModalOpen] = useState(false)
@@ -77,6 +248,13 @@ export function WebsiteDetailPage() {
     welcome_message: '',
     position: 'BOTTOM_RIGHT',
   })
+  const [latestCrawlDelta, setLatestCrawlDelta] = useState<number | null>(null)
+  const previousWebsiteIdRef = useRef<string | null>(null)
+  const previousPagesIndexedRef = useRef<number | null>(null)
+  const previousStatusRef = useRef<Website['status'] | null>(null)
+  const [expandedPageId, setExpandedPageId] = useState<string | null>(null)
+  const [isDownloadingExport, setIsDownloadingExport] = useState(false)
+  const [downloadError, setDownloadError] = useState<string | null>(null)
 
   const normalizePriority = (value?: number) => {
     if (value === undefined) {
@@ -113,6 +291,41 @@ export function WebsiteDetailPage() {
         setErrorMessage('Failed to start crawl')
       }
       setTimeout(() => setErrorMessage(null), 5000)
+    }
+  }
+
+  const handleDownloadExport = async () => {
+    if (!resolvedWebsiteId) {
+      return
+    }
+
+    setDownloadError(null)
+    setIsDownloadingExport(true)
+
+    try {
+      const { blob, filename } = await downloadWebsitePagesExport(resolvedWebsiteId)
+      const fallbackBase = (website?.name?.trim() || website?.url || 'crawl-export')
+        .replace(/^https?:\/\//i, '')
+      const safeBase = fallbackBase
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '') || resolvedWebsiteId
+      const exportName = filename ?? `${safeBase}-crawl.json`
+
+      const blobUrl = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = blobUrl
+      link.download = exportName
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(blobUrl)
+    } catch (error) {
+      console.error('Failed to download crawl export:', error)
+      setDownloadError('Unable to download the latest crawl export. Please try again.')
+      setTimeout(() => setDownloadError(null), 4000)
+    } finally {
+      setIsDownloadingExport(false)
     }
   }
 
@@ -169,21 +382,67 @@ export function WebsiteDetailPage() {
     }
   }
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  }
-
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
     setSuccessMessage('Copied to clipboard!')
     setTimeout(() => setSuccessMessage(null), 2000)
   }
+
+  useEffect(() => {
+    if (!website) {
+      previousWebsiteIdRef.current = null
+      previousPagesIndexedRef.current = null
+      previousStatusRef.current = null
+      setLatestCrawlDelta(null)
+      return
+    }
+
+    if (previousWebsiteIdRef.current !== website.id) {
+      previousWebsiteIdRef.current = website.id
+      previousPagesIndexedRef.current = website.pages_indexed
+      setLatestCrawlDelta(null)
+      return
+    }
+
+    if (website.status === 'CRAWLING') {
+      setLatestCrawlDelta(null)
+    }
+
+    if (previousPagesIndexedRef.current === null) {
+      previousPagesIndexedRef.current = website.pages_indexed
+      return
+    }
+
+    if (website.pages_indexed !== previousPagesIndexedRef.current) {
+      const delta = website.pages_indexed - previousPagesIndexedRef.current
+      previousPagesIndexedRef.current = website.pages_indexed
+      setLatestCrawlDelta(delta > 0 ? delta : null)
+    }
+  }, [website])
+
+  useEffect(() => {
+    if (!website) {
+      previousStatusRef.current = null
+      return
+    }
+
+    const currentStatus = website.status
+    const previousStatus = previousStatusRef.current
+
+    if (previousStatus && previousStatus !== currentStatus && (currentStatus === 'READY' || currentStatus === 'ERROR')) {
+      refetchPages()
+    }
+
+    previousStatusRef.current = currentStatus
+
+    if (currentStatus === 'CRAWLING') {
+      const timeout = setTimeout(() => {
+        refetchPages()
+      }, 5000)
+
+      return () => clearTimeout(timeout)
+    }
+  }, [website, refetchPages])
 
   useEffect(() => {
     if (!website) {
@@ -301,6 +560,34 @@ export function WebsiteDetailPage() {
 })();
 </script>`
 
+  const hasIndexedPages = website.pages_indexed > 0
+  const timelineEvents = buildCrawlTimeline(website, latestCrawlDelta)
+
+  const getTimelineVisuals = (state: CrawlEventState) => {
+    switch (state) {
+      case 'done':
+        return {
+          className: 'border-emerald-500/60 bg-emerald-500/10 text-emerald-200',
+          icon: <CheckCircleIcon className="h-4 w-4" aria-hidden="true" />,
+        }
+      case 'active':
+        return {
+          className: 'border-blue-500/60 bg-blue-500/10 text-blue-200',
+          icon: <ArrowPathIcon className="h-4 w-4 animate-spin" aria-hidden="true" />,
+        }
+      case 'error':
+        return {
+          className: 'border-red-500/60 bg-red-500/10 text-red-200',
+          icon: <ExclamationTriangleIcon className="h-4 w-4" aria-hidden="true" />,
+        }
+      default:
+        return {
+          className: 'border-slate-800 bg-slate-900/70 text-slate-400',
+          icon: <ClockIcon className="h-4 w-4" aria-hidden="true" />,
+        }
+    }
+  }
+
   return (
     <AppShell>
       <Header
@@ -399,13 +686,51 @@ export function WebsiteDetailPage() {
                     srLabel={`Crawling progress for ${website.name}`}
                   />
                   <p className="text-xs text-slate-500">
-                    Indexed {website.pages_indexed} of {website.max_pages} pages
+                    Indexed {website.pages_indexed} of {website.max_pages}{' '}
+                    {pluralize(website.max_pages, 'page')}
                   </p>
                 </div>
               )}
+              {website.status === 'PENDING' && (
+                <div className="mt-4 flex items-start gap-3 rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-xs text-slate-300">
+                  <ClockIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-slate-300" aria-hidden="true" />
+                  <div>
+                    <p className="font-semibold text-slate-100">Waiting to crawl</p>
+                    <p className="text-slate-400">Launch a crawl to index pages and populate the assistant.</p>
+                  </div>
+                </div>
+              )}
+              {website.status === 'CRAWLING' && (
+                <div className="mt-4 flex items-start gap-3 rounded-xl border border-blue-500/40 bg-blue-500/10 px-3 py-2 text-xs text-blue-100">
+                  <ArrowPathIcon className="mt-0.5 h-5 w-5 flex-shrink-0 animate-spin" aria-hidden="true" />
+                  <div>
+                    <p className="font-semibold text-blue-100">Crawl in progress</p>
+                    <p className="text-blue-100/80">We are exploring your site and streaming new pages into the index.</p>
+                  </div>
+                </div>
+              )}
+              {website.status === 'READY' && (
+                <div className="mt-4 flex items-start gap-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
+                  <SparklesIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-200" aria-hidden="true" />
+                  <div>
+                    <p className="font-semibold text-emerald-100">Latest crawl complete</p>
+                    <p className="text-emerald-200/80">
+                      {hasIndexedPages
+                        ? latestCrawlDelta && latestCrawlDelta > 0
+                          ? `Your assistant learned ${latestCrawlDelta} new ${pluralize(latestCrawlDelta, 'page')}.`
+                          : `Your assistant now knows ${website.pages_indexed} ${pluralize(website.pages_indexed, 'page')} from this site.`
+                        : 'No pages were captured. Try another crawl or adjust the crawl settings.'}
+                    </p>
+                  </div>
+                </div>
+              )}
               {website.crawl_error && (
-                <div className="mt-4 rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-300">
-                  {website.crawl_error}
+                <div className="mt-4 flex items-start gap-3 rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-200">
+                  <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-300" aria-hidden="true" />
+                  <div>
+                    <p className="font-semibold text-red-100">Crawl failed</p>
+                    <p className="text-red-200/80">{website.crawl_error}</p>
+                  </div>
                 </div>
               )}
               <Button
@@ -449,6 +774,183 @@ export function WebsiteDetailPage() {
                   <div>
                     <span className="block text-slate-400 mb-1">Welcome Message</span>
                     <span className="text-white">{website.welcome_message}</span>
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle>Crawl activity</CardTitle>
+                <CardDescription>
+                  Live feedback from the crawler so you always know what is happening.
+                </CardDescription>
+              </CardHeader>
+              <div className="px-6 pb-6">
+                <ul className="relative space-y-6">
+                  {timelineEvents.map((event, index) => {
+                    const visuals = getTimelineVisuals(event.state)
+                    return (
+                      <li key={event.key} className="relative flex gap-3">
+                        {index !== timelineEvents.length - 1 && (
+                          <span
+                            className="absolute left-[15px] top-8 bottom-[-24px] w-px bg-slate-800/80"
+                            aria-hidden="true"
+                          />
+                        )}
+                        <span
+                          className={`mt-1 flex h-8 w-8 items-center justify-center rounded-full border text-xs ${visuals.className}`}
+                        >
+                          {visuals.icon}
+                        </span>
+                        <div className="flex-1 pt-1">
+                          <p className="text-sm font-semibold text-white">{event.title}</p>
+                          <p className="text-xs text-slate-400">{event.description}</p>
+                          {event.timestamp && (
+                            <p className="mt-2 text-xs text-slate-500">{event.timestamp}</p>
+                          )}
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            </Card>
+
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle>Indexed pages</CardTitle>
+                <CardDescription>
+                  Review the pages your assistant has learned from and grab the full JSON snapshot.
+                </CardDescription>
+              </CardHeader>
+              <div className="space-y-4 px-6 pb-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-white">
+                      {(pagesCollection?.pages.length ?? 0).toLocaleString()} {pluralize(pagesCollection?.pages.length ?? 0, 'page')} captured
+                    </p>
+                    {pagesCollection?.export?.crawled_at ? (
+                      <p className="text-xs text-slate-500">
+                        Snapshot from {formatDate(pagesCollection.export.crawled_at)}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-slate-500">Snapshots appear after a successful crawl.</p>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        setExpandedPageId(null)
+                        refetchPages()
+                      }}
+                      disabled={isFetchingPages}
+                    >
+                      {isFetchingPages ? 'Refreshing…' : 'Refresh'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleDownloadExport}
+                      disabled={
+                        isDownloadingExport ||
+                        !pagesCollection ||
+                        pagesCollection.pages.length === 0
+                      }
+                    >
+                      {isDownloadingExport ? 'Preparing…' : 'Download JSON'}
+                    </Button>
+                  </div>
+                </div>
+
+                {downloadError && (
+                  <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                    {downloadError}
+                  </div>
+                )}
+
+                {pagesError && (
+                  <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                    {pagesError instanceof ApiError
+                      ? pagesError.message
+                      : 'Failed to load pages. Please try refreshing.'}
+                  </div>
+                )}
+
+                {isLoadingPages ? (
+                  <div className="flex min-h-[140px] items-center justify-center">
+                    <Spinner size="sm" />
+                  </div>
+                ) : pagesCollection && pagesCollection.pages.length > 0 ? (
+                  <ul className="space-y-4">
+                    {pagesCollection.pages.map((page) => {
+                      const isExpanded = expandedPageId === page.id
+                      const canExpand = page.content.length > page.content_preview.length
+                      const headings = Array.isArray(page.page_metadata?.headings)
+                        ? (page.page_metadata?.headings as Array<{ level: number; text: string }>)
+                        : []
+
+                      return (
+                        <li
+                          key={page.id}
+                          className="rounded-lg border border-slate-800/70 bg-slate-950/50 p-4 shadow-sm shadow-slate-950/30"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-white">
+                                {page.title?.trim() || page.url}
+                              </p>
+                              <a
+                                href={page.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="block text-xs text-blue-300 hover:text-blue-200 break-all"
+                              >
+                                {page.url}
+                              </a>
+                            </div>
+                            <div className="flex flex-col items-end gap-1 text-xs text-slate-400">
+                              <span>
+                                {page.word_count.toLocaleString()} {pluralize(page.word_count, 'word')}
+                              </span>
+                              <span>Updated {formatDate(page.last_crawled_at)}</span>
+                            </div>
+                          </div>
+                          <p className="mt-3 text-sm leading-relaxed text-slate-300 whitespace-pre-wrap">
+                            {isExpanded ? page.content : page.content_preview}
+                          </p>
+                          {canExpand && (
+                            <button
+                              type="button"
+                              className="mt-2 text-xs font-semibold text-blue-300 transition hover:text-blue-200"
+                              onClick={() => setExpandedPageId(isExpanded ? null : page.id)}
+                            >
+                              {isExpanded ? 'Show less' : 'Show full content'}
+                            </button>
+                          )}
+                          {headings.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-400">
+                              {headings.slice(0, 3).map((heading, index) => (
+                                <span
+                                  key={`${page.id}-heading-${index}`}
+                                  className="rounded-full bg-slate-800/80 px-2 py-1"
+                                >
+                                  H{heading.level}: {heading.text}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                ) : (
+                  <div className="rounded-lg border border-dashed border-slate-800/70 bg-slate-950/40 px-6 py-10 text-center">
+                    <p className="text-sm text-slate-300">No pages captured yet.</p>
+                    <p className="mt-2 text-xs text-slate-500">
+                      Start a crawl to see indexed content and download structured JSON exports.
+                    </p>
                   </div>
                 )}
               </div>

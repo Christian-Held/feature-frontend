@@ -1,4 +1,4 @@
-import { apiClient } from '../../lib/api'
+import { apiClient, ApiError } from '../../lib/api'
 
 // Types
 export type WebsiteStatus = 'PENDING' | 'CRAWLING' | 'READY' | 'ERROR'
@@ -79,6 +79,30 @@ export interface CrawlResponse {
   message: string
 }
 
+export interface CrawlExportInfo {
+  filename: string
+  crawled_at?: string
+  page_count?: number
+}
+
+export interface WebsitePageRecord {
+  id: string
+  url: string
+  title?: string
+  content: string
+  content_preview: string
+  word_count: number
+  page_metadata?: Record<string, unknown> | null
+  last_crawled_at: string
+  created_at: string
+  updated_at: string
+}
+
+export interface WebsitePageCollection {
+  pages: WebsitePageRecord[]
+  export?: CrawlExportInfo
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
@@ -148,6 +172,32 @@ export async function triggerCrawl(websiteId: string): Promise<CrawlResponse> {
   return apiClient.post<CrawlResponse>(
     `/v1/rag/websites/${encodeURIComponent(websiteId)}/crawl`
   )
+}
+
+export async function listWebsitePages(websiteId: string): Promise<WebsitePageCollection> {
+  return apiClient.get<WebsitePageCollection>(
+    `/v1/rag/websites/${encodeURIComponent(websiteId)}/pages`
+  )
+}
+
+export async function downloadWebsitePagesExport(
+  websiteId: string
+): Promise<{ blob: Blob; filename: string | null }> {
+  const response = await apiClient.getRaw(
+    `/v1/rag/websites/${encodeURIComponent(websiteId)}/pages/export`
+  )
+
+  if (!response.ok) {
+    const message = await response.text()
+    throw new ApiError(message || `Download failed with status ${response.status}`, response.status)
+  }
+
+  const disposition = response.headers.get('Content-Disposition')
+  const filenameMatch = disposition?.match(/filename="?([^";]+)"?/i)
+  const filename = filenameMatch?.[1] ?? null
+
+  const blob = await response.blob()
+  return { blob, filename }
 }
 
 export async function listCustomQAs(websiteId: string): Promise<CustomQA[]> {

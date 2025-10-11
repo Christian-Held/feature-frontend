@@ -8,6 +8,7 @@ import {
   getWebsite,
   listCustomQAs,
   listWebsites,
+  listWebsitePages,
   triggerCrawl,
   updateWebsite,
   type CustomQACreate,
@@ -22,6 +23,7 @@ export const ragKeys = {
   website: (id: string) => [...ragKeys.websites(), id] as const,
   qas: (websiteId: string) => [...ragKeys.website(websiteId), 'qas'] as const,
   analytics: (websiteId: string) => [...ragKeys.website(websiteId), 'analytics'] as const,
+  pages: (websiteId: string) => [...ragKeys.website(websiteId), 'pages'] as const,
 }
 
 // Websites
@@ -112,6 +114,14 @@ export function useCustomQAs(websiteId: string) {
   return useQuery({
     queryKey: ragKeys.qas(websiteId),
     queryFn: () => listCustomQAs(websiteId),
+    enabled: !!websiteId,
+  })
+}
+
+export function useWebsitePages(websiteId: string) {
+  return useQuery({
+    queryKey: ragKeys.pages(websiteId),
+    queryFn: () => listWebsitePages(websiteId),
     enabled: !!websiteId,
   })
 }
